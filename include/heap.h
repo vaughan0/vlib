@@ -1,0 +1,39 @@
+#ifndef HEAP_H_CEF19AB4CFA72A
+#define HEAP_H_CEF19AB4CFA72A
+
+#include <stddef.h>
+#include <stdint.h>
+
+#include "vector.h"
+
+// Comparison function. Returns a non-zero integer if a has higher priority than b.
+typedef int (*HeapCmp)(const void* a, const void* b);
+
+typedef int HeapRef;
+
+typedef struct Heap {
+  HeapCmp     cmp;
+  size_t      elemsz;
+  size_t      size;
+  Vector      v;
+} Heap;
+
+void heap_init(Heap* h, HeapCmp cmp, size_t elemsz, size_t capacity);
+void heap_close(Heap* h);
+
+void*     heap_peek(Heap* h, HeapRef* ref);
+void      heap_pop(Heap* h);
+
+/* To push a value to a heap:
+ * First obtain a pointer to the new value with heap_alloc(),
+ * then call heap_push() so that the heap can restructure itself.
+ */
+void*     heap_alloc(Heap* h);
+void      heap_push(Heap* h, HeapRef* ref);
+
+void*     heap_get(Heap* h, HeapRef ref);
+void      heap_remove(Heap* h, HeapRef ref);
+void      heap_update(Heap* h, HeapRef ref);
+
+#endif /* HEAP_H_CEF19AB4CFA72A */
+

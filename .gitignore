@@ -1,0 +1,5 @@
+/libvlib.a
+/*.make
+/test
+/obj
+/Makefile
