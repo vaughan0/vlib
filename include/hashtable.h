@@ -4,8 +4,6 @@
 #include <stdint.h>
 #include <stddef.h>
 
-#include "memory.h"
-
 typedef uint64_t (*Hasher)(const char* data, size_t sz);
 
 // Returns 0 if keys are equal; anything else means not equal.

@@ -5,7 +5,6 @@ solution 'vlib'
   -- Global config
 
   language 'C'
-  includedirs { 'include' }
   buildoptions { '-std=gnu99' }
 
   links { }
@@ -20,5 +19,6 @@ solution 'vlib'
 
   project 'vlib'
     kind 'StaticLib'
+    includedirs 'src'
     files { 'src/*.c', 'include/*.h' }
 

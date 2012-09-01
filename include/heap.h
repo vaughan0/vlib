@@ -4,7 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "vector.h"
+#include <vlib/vector.h>
 
 // Comparison function. Returns a non-zero integer if a has higher priority than b.
 typedef int (*HeapCmp)(const void* a, const void* b);

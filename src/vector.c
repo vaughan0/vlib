@@ -2,8 +2,7 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#include "memory.h"
-#include "vector.h"
+#include <vlib/vector.h>
 
 void vector_init(Vector* v, size_t elemsz, size_t cap) {
   assert(cap > 0);

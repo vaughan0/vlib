@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <assert.h>
 
-#include "hashtable.h"
+#include <vlib/hashtable.h>
 
 void hashtable_init(Hashtable* ht, Hasher hasher, Equaler equaler, size_t keysz, size_t elemsz, size_t cap, double loadfactor) {
   assert(keysz > 0);

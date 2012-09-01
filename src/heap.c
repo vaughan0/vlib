@@ -2,7 +2,7 @@
 #include <assert.h>
 #include <stdio.h>
 
-#include "heap.h"
+#include <vlib/heap.h>
 
 typedef struct Data {
   // vector[index] fields:
