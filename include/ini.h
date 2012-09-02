@@ -1,6 +1,8 @@
 #ifndef INI_H_A089732CABEE2D
 #define INI_H_A089732CABEE2D
 
+#include <stdbool.h>
+
 #include <vlib/hashtable.h>
 #include <vlib/gqi.h>
 
@@ -31,7 +33,7 @@ void ini_dump(INI* self, char* buf, size_t bufsz);
 
 // GQI implementation. If free_on_close is non-zero then the INI object
 // will be freed when the GQI instance is closed.
-GQI* gqi_new_ini(INI* ini, int free_on_close);
+GQI* gqi_new_ini(INI* ini, bool free_on_close);
 
 #endif /* INI_H_A089732CABEE2D */
 

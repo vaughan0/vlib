@@ -242,7 +242,7 @@ void ini_dump(INI* self, char* buf, size_t bufsz) {
 typedef struct GQI_INI {
   GQI     _base;
   INI*    ini;
-  int     owns:1;
+  bool    owns;
 } GQI_INI;
 
 static int gqi_ini_query(void* _self, GQI_String* input, GQI_String* result) {
@@ -300,7 +300,7 @@ static GQI_Class gqi_ini_class = {
   .close = gqi_ini_close,
 };
 
-GQI* gqi_new_ini(INI* ini, int free_on_close) {
+GQI* gqi_new_ini(INI* ini, bool free_on_close) {
   GQI_INI* self = malloc(sizeof(GQI_INI));
   gqi_init(self, &gqi_ini_class);
   self->ini = ini;
