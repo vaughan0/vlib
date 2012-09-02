@@ -4,6 +4,7 @@
 #include <assert.h>
 
 #include <vlib/gqi.h>
+#include <vlib/hashtable.h>
 
 /* GQI_String */
 
@@ -85,6 +86,28 @@ void gqi_init(void* _instance, GQI_Class* cls) {
   GQI* instance = _instance;
   instance->_class = cls;
   instance->_refs = 1;
+}
+
+/* Hashtable utils */
+
+uint64_t gqis_hasher(const void* data, size_t sz) {
+  assert(sz == sizeof(GQI_String));
+  const GQI_String* str = data;
+  if (str->str == 0) {
+    return 0;
+  }
+  return hasher_fnv64(str->str, str->sz);
+}
+int gqis_equaler(const void* _a, const void* _b, size_t sz) {
+  assert(sz == sizeof(GQI_String));
+  const GQI_String *a = _a, *b = _b;
+  if (a->str == NULL && b->str == NULL) return 0;
+  if (a->str == NULL || b->str == NULL) return -1;
+  if (a->sz != b->sz) return -1;
+  for (unsigned i = 0; i < a->sz; i++) {
+    if (a->str[i] != b->str[i]) return -1;
+  }
+  return 0;
 }
 
 /* GQI_Value (Default and Value) */
@@ -272,4 +295,75 @@ void gqi_first_add(void* _self, GQI* instance) {
   } else {
     self->last->next = entry;
   }
+}
+
+/* GQI_Memoize */
+
+typedef struct GQI_Memoize {
+  GQI       base;
+  GQI*      backend;
+  Hashtable ht;
+} GQI_Memoize;
+
+static int memoize_query(void* _self, GQI_String* input, GQI_String* result) {
+  GQI_Memoize* self = _self;
+
+  // Check the cache
+  GQI_String* cached = hashtable_get(&self->ht, input);
+  if (cached) {
+    if (cached->str) {
+      gqis_init_copy(result, cached->str, cached->sz);
+    } else {
+      gqis_init_null(result);
+    }
+    return 0;
+  }
+
+  // Query the backend directly
+  int r = gqi_query(self->backend, input, result);
+  if (r) {
+    // don't cache errors
+    return r;
+  }
+
+  // Store the result in the hashtable
+  GQI_String key;
+  gqis_init_copy(&key, input->str, input->sz);
+  cached = hashtable_insert(&self->ht, &key);
+  if (result->str) {
+    gqis_init_copy(cached, result->str, result->sz);
+  } else {
+    gqis_init_null(cached);
+  }
+
+  return 0;
+}
+static void memoize_close(void* _self) {
+  GQI_Memoize* self = _self;
+  gqi_release(self->backend);
+
+  HT_Iter iter;
+  hashtable_iter(&self->ht, &iter);
+  GQI_String *data, *key;
+  while ( (key = hashtable_next(&iter, (void**)&data)) != NULL ) {
+    gqis_release(key);
+    gqis_release(data);
+  }
+
+  hashtable_close(&self->ht);
+  free(self);
+}
+
+static GQI_Class memoize_class = {
+  .query = memoize_query,
+  .close = memoize_close,
+};
+
+GQI* gqi_new_memoize(GQI* backend) {
+  GQI_Memoize* self = malloc(sizeof(GQI_Memoize));
+  gqi_init(self, &memoize_class);
+  self->backend = backend;
+  gqi_acquire(backend);
+  hashtable_init(&self->ht, gqis_hasher, gqis_equaler, sizeof(GQI_String), sizeof(GQI_String), 7, 0.75);
+  return (GQI*)self;
 }

@@ -1,13 +1,13 @@
 #ifndef GQI_H_4B3F1BFF797FC8
 #define GQI_H_4B3F1BFF797FC8
 
-#include <string.h>
-
 /**
  * General Query Interface
  */
 
 #include <stddef.h>
+#include <string.h>
+#include <stdint.h>
 
 /* GQI Strings */
 
@@ -83,6 +83,11 @@ void gqi_init(void* _instance, GQI_Class* cls);
 void gqi_acquire(GQI* instance);
 void gqi_release(GQI* instance);
 
+/* Utilities for using GQI_Strings in Hashtables. */
+
+uint64_t gqis_hasher(const void* data, size_t sz);
+int gqis_equaler(const void* a, const void* b, size_t sz);
+
 /**
  * How to implement the GQI* interface:
  *
@@ -99,22 +104,14 @@ void gqi_release(GQI* instance);
  * implementation does not allocate any extra memory.
  */
 
-/**
- * Default: always returns a constant string.
- */
-
+// Default: always returns a constant string.
 GQI* gqi_new_default(const GQI_String* value);
-
 static inline GQI* gqic_new_default(const char* _value) {
   GQI_String value = {_value, strlen(_value)};
   return gqi_new_default(&value);
 }
 
-/**
- * GQI Value: returns a constant string if the query string is empty, otherwise it
- * returns NULL. This is intended to be used with GQI_Mux.
- */
-
+// Value: like Default, but only returns the string if the query string is empty.
 GQI* gqi_new_value(const GQI_String* value);
 
 static inline GQI* gqic_new_value(const char* _value) {
@@ -138,11 +135,12 @@ static inline void gqic_mux_register(void* mux, const char* _prefix, GQI* delega
   gqi_mux_register(mux, &prefix, delegate);
 }
 
-/**
- * First: return the first non-NULL result (including errors).
- */
+// First: return the first non-NULL result (including errors).
 GQI* gqi_new_first();
 void gqi_first_add(void* self, GQI* instance);
+
+// Memoize: caches the results of a backend instance.
+GQI* gqi_new_memoize(GQI* backend);
 
 #endif /* GQI_H_4B3F1BFF797FC8 */
 

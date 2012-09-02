@@ -70,7 +70,43 @@ static int gqi_basic() {
   return 0;
 }
 
+static int gqi_counter_query(void* _self, GQI_String* input, GQI_String* result) {
+  static int counter = 0;
+  static char cbuf[30];
+  sprintf(cbuf, "%d", counter++);
+  gqis_init_copy(result, cbuf, strlen(cbuf));
+  return 0;
+}
+static int gqi_memoize() {
+
+  GQI_Class cls = {
+    .query = gqi_counter_query,
+    .close = free,
+  };
+  GQI* counter = malloc(sizeof(GQI));
+  gqi_init(counter, &cls);
+
+  GQI* db = gqi_new_memoize(counter);
+
+  assertTrue(check(counter, "ignored", "0"));
+  assertTrue(check(counter, "ignored", "1"));
+  assertTrue(check(counter, "ignored", "2"));
+
+  assertTrue(check(db, "ignored", "3"));
+  assertTrue(check(db, "ignored", "3"));
+
+  assertTrue(check(counter, "ignored", "4"));
+  assertTrue(check(counter, "ignored", "5"));
+
+  assertTrue(check(db, "ignored", "3"));
+
+  gqi_release(counter);
+  gqi_release(db);
+  return 0;
+}
+
 VLIB_SUITE(gqi) = {
   VLIB_TEST(gqi_basic),
+  VLIB_TEST(gqi_memoize),
   VLIB_END
 };

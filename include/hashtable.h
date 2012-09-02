@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stddef.h>
 
-typedef uint64_t (*Hasher)(const char* data, size_t sz);
+typedef uint64_t (*Hasher)(const void* data, size_t sz);
 
 // Returns 0 if keys are equal; anything else means not equal.
 typedef int (*Equaler)(const void* k1, const void* k2, size_t sz);
@@ -58,8 +58,8 @@ void* hashtable_next(HT_Iter* iter, void** data);
 
 /* Builtin hasher/equaler functions */
 
-uint64_t hasher_fnv64(const char*, size_t);
-uint64_t hasher_fnv64str(const char*, size_t);
+uint64_t hasher_fnv64(const void*, size_t);
+uint64_t hasher_fnv64str(const void*, size_t);
 
 int equaler_str(const void*, const void*, size_t);
 

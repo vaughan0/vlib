@@ -137,7 +137,8 @@ void* hashtable_next(HT_Iter* iter, void** data) {
 
 /* Hashers */
 
-uint64_t hasher_fnv64(const char* data, size_t sz) {
+uint64_t hasher_fnv64(const void* _data, size_t sz) {
+  const char* data = _data;
   uint64_t hash = 14695981039346656037;
   for (unsigned i = 0; i < sz; i++) {
     unsigned octet = (unsigned)data[i] & 0xFF;
@@ -146,7 +147,7 @@ uint64_t hasher_fnv64(const char* data, size_t sz) {
   }
   return hash;
 }
-uint64_t hasher_fnv64str(const char* ptr, size_t sz) {
+uint64_t hasher_fnv64str(const void* ptr, size_t sz) {
   const char* str = *(const char**)ptr;
   size_t len = strlen(str);
   return hasher_fnv64(str, len);
