@@ -1,5 +1,5 @@
 /libvlib.a
 /*.make
-/test
 /obj
+/test/run
 /Makefile

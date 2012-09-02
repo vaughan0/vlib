@@ -6,8 +6,7 @@ solution 'vlib'
 
   language 'C'
   buildoptions { '-std=gnu99' }
-
-  links { }
+  includedirs '.'
 
   configuration 'debug'
     defines { 'DEBUG' }
@@ -19,6 +18,14 @@ solution 'vlib'
 
   project 'vlib'
     kind 'StaticLib'
-    includedirs 'src'
     files { 'src/*.c', 'include/*.h' }
+
+  project 'test'
+    kind 'ConsoleApp'
+    links 'vlib'
+    includedirs 'src'
+    targetdir 'test'
+    targetname 'run'
+    files { 'test/main.c' }
+
 
