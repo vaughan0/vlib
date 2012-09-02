@@ -38,7 +38,8 @@ void* hashtable_get(Hashtable* ht, const void* key);
 void* hashtable_insert(Hashtable* ht, const void* key);
 
 // Removes an entry from the hashtable.
-void hashtable_remove(Hashtable* ht, const void* key);
+// If oldkey is not NULL, then it will be filled with the old key data.
+void hashtable_remove(Hashtable* ht, const void* key, void* oldkey);
 
 /* Iteration */
 

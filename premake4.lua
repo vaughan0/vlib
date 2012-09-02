@@ -8,6 +8,8 @@ solution 'vlib'
   buildoptions { '-std=gnu99' }
   includedirs '.'
 
+  links { 'zmq' }
+
   configuration 'debug'
     defines { 'DEBUG' }
     flags { 'Symbols', 'ExtraWarnings' }
@@ -26,6 +28,6 @@ solution 'vlib'
     includedirs 'src'
     targetdir 'test'
     targetname 'run'
-    files { 'test/main.c' }
+    files { 'test/*.c' }
 
 

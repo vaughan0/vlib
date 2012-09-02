@@ -29,8 +29,9 @@ int ini_parse(INI* self, const char* text, const char** err);
 // Generate an INI file
 void ini_dump(INI* self, char* buf, size_t bufsz);
 
-// GQI implementation
-GQI* gqi_new_ini(INI* ini);
+// GQI implementation. If free_on_close is non-zero then the INI object
+// will be freed when the GQI instance is closed.
+GQI* gqi_new_ini(INI* ini, int free_on_close);
 
 #endif /* INI_H_A089732CABEE2D */
 

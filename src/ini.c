@@ -242,6 +242,7 @@ void ini_dump(INI* self, char* buf, size_t bufsz) {
 typedef struct GQI_INI {
   GQI     _base;
   INI*    ini;
+  int     owns:1;
 } GQI_INI;
 
 static int gqi_ini_query(void* _self, GQI_String* input, GQI_String* result) {
@@ -285,15 +286,24 @@ nope:
   gqis_init_static(result, err, strlen(err));
   return -1;
 }
+static void gqi_ini_close(void* _self) {
+  GQI_INI* self = _self;
+  if (self->owns) {
+    ini_close(self->ini);
+    free(self->ini);
+  }
+  free(self);
+}
 
 static GQI_Class gqi_ini_class = {
   .query = gqi_ini_query,
-  .close = free,
+  .close = gqi_ini_close,
 };
 
-GQI* gqi_new_ini(INI* ini) {
+GQI* gqi_new_ini(INI* ini, int free_on_close) {
   GQI_INI* self = malloc(sizeof(GQI_INI));
   gqi_init(self, &gqi_ini_class);
   self->ini = ini;
+  self->owns = (free_on_close != 0);
   return (GQI*)self;
 }

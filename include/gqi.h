@@ -1,6 +1,8 @@
 #ifndef GQI_H_4B3F1BFF797FC8
 #define GQI_H_4B3F1BFF797FC8
 
+#include <string.h>
+
 /**
  * General Query Interface
  */

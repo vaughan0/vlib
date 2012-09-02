@@ -1,4 +1,5 @@
 
+#include <vlib/test.h>
 #include <vlib/vector.h>
 
 int vector_basic() {
@@ -16,9 +17,11 @@ int vector_basic() {
     vector_pop(&v);
   }
   assertEqual(v.size, 0);
+  vector_close(&v);
   return 0;
 }
 
 VLIB_SUITE(vector) = {
   VLIB_TEST(vector_basic),
+  VLIB_END,
 };

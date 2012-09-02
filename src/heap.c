@@ -84,13 +84,12 @@ void* heap_alloc(Heap* h) {
   h->size++;
   return refd->data;
 }
-void heap_push(Heap* h, HeapRef* refptr) {
+HeapRef heap_push(Heap* h) {
   assert(h->size > 0);
-  if (refptr) {
-    Data* d = vector_get(&h->v, h->size-1);
-    *refptr = d->ref;
-  }
+  Data* d = vector_get(&h->v, h->size-1);
+  HeapRef ref = d->ref;
   siftup(h, h->size-1);
+  return ref;
 }
 
 void* heap_peek(Heap* h, HeapRef* ref) {

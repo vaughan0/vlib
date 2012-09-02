@@ -29,7 +29,7 @@ void      heap_pop(Heap* h);
  * then call heap_push() so that the heap can restructure itself.
  */
 void*     heap_alloc(Heap* h);
-void      heap_push(Heap* h, HeapRef* ref);
+HeapRef   heap_push(Heap* h);
 
 void*     heap_get(Heap* h, HeapRef ref);
 void      heap_remove(Heap* h, HeapRef ref);

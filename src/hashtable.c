@@ -102,10 +102,13 @@ void* hashtable_insert(Hashtable* ht, const void* key) {
   return new->data + ht->keysz;
 }
 
-void hashtable_remove(Hashtable* ht, const void* key) {
+void hashtable_remove(Hashtable* ht, const void* key, void* oldkey) {
   HT_Bucket** prev;
   HT_Bucket* b = lookup(ht, key, &prev);
   assert(b);
+  if (oldkey) {
+    memcpy(oldkey, b->data, ht->keysz);
+  }
   // Remove bucket from the linked list
   *prev = b->next;
   free(b);
