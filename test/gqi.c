@@ -98,7 +98,9 @@ static int gqi_memoize() {
   assertTrue(check(counter, "ignored", "4"));
   assertTrue(check(counter, "ignored", "5"));
 
+  assertTrue(check(db, "newkey", "6"));
   assertTrue(check(db, "ignored", "3"));
+  assertTrue(check(db, "newkey", "6"));
 
   gqi_release(counter);
   gqi_release(db);
