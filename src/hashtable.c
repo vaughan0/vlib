@@ -20,7 +20,8 @@ void hashtable_init(Hashtable* ht, Hasher hasher, Equaler equaler, size_t keysz,
   ht->keysz = keysz;
   ht->loadfactor = loadfactor;
   ht->size = 0;
-
+  
+  ht->_maxsize = (size_t)(cap * loadfactor);
   ht->_cap = cap;
   ht->_buckets = malloc(sizeof(HT_Bucket*) * cap);
   memset(ht->_buckets, 0, sizeof(HT_Bucket*) * cap);
@@ -64,8 +65,7 @@ static HT_Bucket* insert(Hashtable* ht, HT_Bucket** buckets, size_t cap, uint64_
 }
 
 static inline void check_loadfactor(Hashtable* ht) {
-  double load = (double)(ht->size) / (double)(ht->_cap);
-  if (load > ht->loadfactor) {
+  if (ht->size >= ht->_maxsize) {
     // Rehash
     size_t newcap = ht->_cap * 2;
     HT_Bucket** newbuckets = malloc(sizeof(HT_Bucket*) * newcap);
@@ -84,6 +84,7 @@ static inline void check_loadfactor(Hashtable* ht) {
     free(ht->_buckets);
     ht->_buckets = newbuckets;
     ht->_cap = newcap;
+    ht->_maxsize = (size_t)(ht->_cap * ht->loadfactor);
   }
 }
 

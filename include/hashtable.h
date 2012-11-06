@@ -25,6 +25,7 @@ typedef struct Hashtable {
 
   size_t      _cap;
   HT_Bucket** _buckets;
+  size_t      _maxsize;     // precalculated maximum size before a rehash is needed
 } Hashtable;
 
 void hashtable_init(Hashtable* ht, Hasher h, Equaler e, size_t keysz, size_t elemsz, size_t capacity, double loadfactor);
