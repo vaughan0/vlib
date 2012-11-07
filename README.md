@@ -2,7 +2,7 @@
 Vlib
 ====
 
-vlib is a simple utilities C library I use for personal projects.
+vlib is a simple utility C library that I use for personal projects.
 
 How to Compile
 --------------
