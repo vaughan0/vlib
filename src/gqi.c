@@ -104,10 +104,7 @@ int gqis_equaler(const void* _a, const void* _b, size_t sz) {
   if (a->str == NULL && b->str == NULL) return 0;
   if (a->str == NULL || b->str == NULL) return -1;
   if (a->sz != b->sz) return -1;
-  for (unsigned i = 0; i < a->sz; i++) {
-    if (a->str[i] != b->str[i]) return -1;
-  }
-  return 0;
+  return memcmp(a->str, b->str, a->sz);
 }
 
 /* GQI_Value (Default and Value) */
