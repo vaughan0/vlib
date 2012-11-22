@@ -7,3 +7,4 @@ SUITE(vector);
 SUITE(heap);
 SUITE(hashtable);
 SUITE(gqi);
+SUITE(io);

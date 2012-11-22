@@ -72,7 +72,6 @@ Input* string_input_new(const char* src, size_t sz) {
 static int64_t string_input_read(void* _self, char* dst, size_t n) {
   StringInput* self = _self;
   n = MIN(n, self->size - self->offset);
-  printf("read: %lu\n", n);
   memcpy(dst, self->src + self->offset, n);
   self->offset += n;
   return n;
