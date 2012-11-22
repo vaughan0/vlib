@@ -44,5 +44,9 @@ const char* string_output_data(void* string_output, size_t* size);
 Input*      fd_input_new(int fd);
 Output*     fd_output_new(int fd);
 
+extern Input  null_input;   // Always returns EOF
+extern Output null_output;  // Discards all data
+extern Input  zero_input;   // Always reads zeroes
+
 #endif /* IO_H_2A5A68C6C96499 */
 

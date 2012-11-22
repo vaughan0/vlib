@@ -307,7 +307,6 @@ static Input_Class fd_input_class = {
   .close = fd_input_close,
 };
 
-
 data(FDOutput) {
   Output  base;
   FILE*   file;
@@ -350,4 +349,71 @@ static Output_Class fd_output_class = {
   .put = fd_output_put,
   .flush = fd_output_flush,
   .close = fd_output_close,
+};
+
+/* Null IO */
+
+static int64_t null_input_read(void* self, char* dst, size_t n) {
+  return 0;
+}
+static int null_input_get(void* self) {
+  return -1;
+}
+static void null_input_unget(void* self) {}
+static void null_input_close(void* self) {}
+
+static Input_Class null_input_class = {
+  .read = null_input_read,
+  .get = null_input_get,
+  .unget = null_input_unget,
+  .close = null_input_close,
+};
+
+Input null_input = {
+  ._class = &null_input_class,
+};
+
+static int64_t null_output_write(void* self, const char* src, size_t n) {
+  return n;
+}
+static bool null_output_put(void* self, char ch) {
+  return true;
+}
+static bool null_output_flush(void* self) {
+  return true;
+}
+static void null_output_close(void* self) {}
+
+static Output_Class null_output_class = {
+  .write = null_output_write,
+  .put = null_output_put,
+  .flush = null_output_flush,
+  .close = null_output_close,
+};
+
+Output null_output = {
+  ._class = &null_output_class,
+};
+
+/* Zero input */
+
+static int64_t zero_input_read(void* self, char* dst, size_t n) {
+  memset(dst, 0, n);
+  return n;
+}
+static int zero_input_get(void* self) {
+  return 0;
+}
+static void zero_input_unget(void* self) {}
+static void zero_input_close(void* self) {}
+
+static Input_Class zero_input_class = {
+  .read = zero_input_read,
+  .get = zero_input_get,
+  .unget = zero_input_unget,
+  .close = zero_input_close,
+};
+
+Input zero_input = {
+  ._class = &zero_input_class,
 };
