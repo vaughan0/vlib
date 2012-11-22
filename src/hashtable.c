@@ -140,7 +140,7 @@ void* hashtable_next(HT_Iter* iter, void** data) {
 
 uint64_t hasher_fnv64(const void* _data, size_t sz) {
   const char* data = _data;
-  uint64_t hash = 14695981039346656037;
+  uint64_t hash = 14695981039346656037UL;
   for (unsigned i = 0; i < sz; i++) {
     unsigned octet = (unsigned)data[i] & 0xFF;
     hash ^= octet;
