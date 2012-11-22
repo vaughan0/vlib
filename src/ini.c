@@ -68,9 +68,8 @@ typedef struct Parser {
   INI*        ini;
   char*       section;
   const char* error;
+  char        buf[200];
 } Parser;
-
-static char buf[200];
 
 static char* trim(const char* src, size_t len) {
   unsigned start = 0;
@@ -90,11 +89,11 @@ static int parse_section(Parser* self, const char* line, size_t len) {
 
   // Fill buffer with characters until a ']' is reached
   while (i < len && line[i] != ']') {
-    if (i+1 == sizeof(buf)) {
+    if (i+1 == sizeof(self->buf)) {
       self->error = "section name is too long";
       return -1;
     }
-    buf[i] = line[i];
+    self->buf[i] = line[i];
     i++;
   }
 
@@ -102,7 +101,7 @@ static int parse_section(Parser* self, const char* line, size_t len) {
     self->error = "unmatched ']'";
     return -1;
   }
-  buf[i] = 0;
+  self->buf[i] = 0;
   i++;
 
   // Expect whitespace until the end of the line
@@ -115,7 +114,7 @@ static int parse_section(Parser* self, const char* line, size_t len) {
   }
 
   if (self->section) free(self->section);
-  self->section = strdup(buf);
+  self->section = strdup(self->buf);
   return 0;
 }
 static int parse_entry(Parser* self, const char* line, size_t len) {
@@ -124,11 +123,11 @@ static int parse_entry(Parser* self, const char* line, size_t len) {
 
   // Read key
   while (i < len && line[i] != '=') {
-    if (bufi+1 == sizeof(buf)) {
+    if (bufi+1 == sizeof(self->buf)) {
       self->error = "key name is too long";
       return -1;
     }
-    buf[bufi++] = line[i++];
+    self->buf[bufi++] = line[i++];
   }
   if (i == len) {
     self->error = "'=' not found";
@@ -136,22 +135,22 @@ static int parse_entry(Parser* self, const char* line, size_t len) {
   }
   i++; // consume '='
 
-  char* key = trim(buf, bufi);
+  char* key = trim(self->buf, bufi);
   bufi = 0;
 
   // Read value
   bufi = 0;
   while (i < len && isspace(line[i])) i++;
   while (i < len) {
-    if (bufi+1 == sizeof(buf)) {
+    if (bufi+1 == sizeof(self->buf)) {
       self->error = "value is too long";
       free(key);
       return -1;
     }
-    buf[bufi++] = line[i++];
+    self->buf[bufi++] = line[i++];
   }
 
-  char* value = trim(buf, bufi);
+  char* value = trim(self->buf, bufi);
 
   // Add entry
   ini_add(self->ini, self->section, key, value);
@@ -217,8 +216,8 @@ int ini_parse(INI* self, const char* text, const char** err) {
   return 0;
 
 error:
-  snprintf(buf, sizeof(buf), "line %u: %s", line, parser.error);
-  *err = buf;
+  snprintf(parser.buf, sizeof(parser.buf), "line %u: %s", line, parser.error);
+  *err = parser.buf;
   if (parser.section) free(parser.section);
   return -1;
 }
@@ -249,6 +248,7 @@ static int gqi_ini_query(void* _self, GQI_String* input, GQI_String* result) {
   GQI_INI* self = _self;
 
   char *section = NULL, *key = NULL;
+  char buf[200];
 
   unsigned bufi = 0;
   unsigned i = 0;
