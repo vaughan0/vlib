@@ -39,7 +39,7 @@ int64_t     io_copyn(Input* from, Output* to, size_t max);
 Input*      string_input_new(const char* src, size_t sz);
 
 Output*     string_output_new(size_t initcap);
-const char* string_output_data(void* string_output, size_t* size);
+const char* string_output_data(Output* string_output, size_t* size);
 
 Input*      fd_input_new(int fd);
 Output*     fd_output_new(int fd);

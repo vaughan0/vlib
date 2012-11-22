@@ -220,8 +220,8 @@ static void string_output_close(void* _self) {
   free(self);
 }
 
-const char* string_output_data(void* _self, size_t* store_size) {
-  StringOutput* self = _self;
+const char* string_output_data(Output* _self, size_t* store_size) {
+  StringOutput* self = (StringOutput*)_self;
 
   if (self->first->next) {
 
