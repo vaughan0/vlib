@@ -17,28 +17,23 @@
  * is closed along with the containing instance or not. It defaults to true, so be careful.
  */
 
-data(Input) {
-  RawInput  base;
-  RawInput* in;
+data(BufInput) {
+  Input     base;
+  Input*    in;
   Buffer*   buf;
   bool      close_backend;
 };
 
-Input*  input_new(RawInput* wrap, size_t buffer);
+void* buf_input_new(Input* wrap, size_t buffer);
 
-int     input_get(Input* self);
-void    input_unget(Input* self);
-
-data(Output) {
-  RawOutput   base;
-  RawOutput*  out;
+data(BufOutput) {
+  Output      base;
+  Output*     out;
   Buffer*     buf;
   bool        close_backend;
 };
 
-Output* output_new(RawOutput* wrap, size_t buffer);
-
-void    output_put(Output* self, char ch);
+void* buf_output_new(Output* wrap, size_t buffer);
 
 #endif /* BUFIO_H_CC4072C147916A */
 

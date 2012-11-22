@@ -32,15 +32,19 @@ size_t buffer_read(Buffer* self, char* dst, size_t n) {
   return n;
 }
 
-void buffer_fill(Buffer* self, RawInput* in) {
+bool buffer_fill(Buffer* self, Input* in) {
   self->read = 0;
-  self->write = call(in, read, self->data, self->size);
+  int64_t r = io_read(in, self->data, self->size);
+  if (r < 0) return false;
+  self->write = r;
+  return true;
 }
 
-void buffer_flush(Buffer* self, RawOutput* out) {
-  call(out, write, self->data + self->read, self->write - self->read);
+bool buffer_flush(Buffer* self, Output* out) {
+  if (!io_write(out, self->data + self->read, self->write - self->read)) return false;
   self->write = 0;
   self->read = 0;
+  return true;
 }
 
 void buffer_reset(Buffer* self) {

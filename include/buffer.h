@@ -27,8 +27,8 @@ static inline size_t buffer_avail_write(Buffer* self) {
 size_t    buffer_write(Buffer* self, const char* data, size_t n);
 size_t    buffer_read(Buffer* self, char* dst, size_t n);
 
-void      buffer_fill(Buffer* self, RawInput* in);
-void      buffer_flush(Buffer* self, RawOutput* out);
+bool      buffer_fill(Buffer* self, Input* in);
+bool      buffer_flush(Buffer* self, Output* out);
 
 void      buffer_reset(Buffer* self);
 
