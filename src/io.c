@@ -82,6 +82,18 @@ int64_t io_copy(Input* from, Output* to) {
   }
   return copied;
 }
+int64_t io_copyn(Input* from, Output* to, size_t n) {
+  char cbuf[4096];
+  size_t copied = 0;
+  while (copied < n) {
+    int64_t r = io_read(from, cbuf, MIN(sizeof(cbuf), n-copied));
+    if (r <= 0) break;
+    int64_t w = io_write_full(to, cbuf, r);
+    copied += w;
+    if (w != r) break;
+  }
+  return copied;
+}
 
 /* StringInput */
 
