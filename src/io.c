@@ -8,7 +8,7 @@
 #include <vlib/io.h>
 #include <vlib/vector.h>
 
-/* io_ methods */
+/* Base functions */
 
 int64_t io_read(Input* in, char* dst, size_t n) {
   if (in->_class->read) {
@@ -47,7 +47,41 @@ int64_t io_write(Output* out, const char* src, size_t n) {
   }
   return w;
 }
+int64_t io_write_full(Output* out, const char* src, size_t n) {
+  size_t written = 0;
+  while (written < n) {
+    int64_t r = io_write(out, src+written, n-written);
+    if (r <= 0) break;
+    written += r;
+  }
+  return written;
+}
+bool io_put(Output* out, char ch) {
+  if (out->_class->put) {
+    return call(out, put, ch);
+  }
+  assert(out->_class->write);
+  return io_write(out, &ch, 1) == 1;
+}
+bool io_flush(Output* output) {
+  assert(output->_class->flush);
+  return call(output, flush);
+}
 
+/* Utilities */
+
+int64_t io_copy(Input* from, Output* to) {
+  char cbuf[4096];
+  int64_t copied = 0;
+  for (;;) {
+    int64_t r = io_read(from, cbuf, sizeof(cbuf));
+    if (r <= 0) break;
+    int64_t w = io_write_full(to, cbuf, r);
+    copied += w;
+    if (w != r) break;
+  }
+  return copied;
+}
 
 /* StringInput */
 
@@ -219,4 +253,89 @@ static Output_Class string_output_class = {
   .put = string_output_put,
   .flush = string_output_flush,
   .close = string_output_close,
+};
+
+/* File descriptor wrappers */
+
+data(FDInput) {
+  Input   base;
+  FILE*   file;
+};
+
+static Input_Class fd_input_class;
+
+Input* fd_input_new(int fd) {
+  FILE* file = fdopen(fd, "r");
+  if (!file) return NULL;
+  FDInput* self = malloc(sizeof(FDInput));
+  self->base._class = &fd_input_class;
+  self->file = file;
+  return &self->base;
+}
+
+static int64_t fd_input_read(void* _self, char* dst, size_t n) {
+  FDInput* self = _self;
+  return fread(dst, 1, n, self->file);
+}
+
+static int fd_input_get(void* _self) {
+  FDInput* self = _self;
+  return fgetc(self->file);
+}
+
+static void fd_input_close(void* _self) {
+  FDInput* self = _self;
+  fclose(self->file);
+  free(self);
+}
+
+static Input_Class fd_input_class = {
+  .read = fd_input_read,
+  .get = fd_input_get,
+  .close = fd_input_close,
+};
+
+
+data(FDOutput) {
+  Output  base;
+  FILE*   file;
+};
+
+static Output_Class fd_output_class;
+
+Output* fd_output_new(int fd) {
+  FILE* file = fdopen(fd, "w");
+  if (!file) return NULL;
+  FDOutput* self = malloc(sizeof(FDOutput));
+  self->base._class = &fd_output_class;
+  self->file = file;
+  return &self->base;
+}
+
+static int64_t fd_output_write(void* _self, const char* src, size_t n) {
+  FDOutput* self = _self;
+  return fwrite(src, 1, n, self->file);
+}
+
+static bool fd_output_put(void* _self, char ch) {
+  FDOutput* self = _self;
+  return fputc((int)ch, self->file) != EOF;
+}
+
+static bool fd_output_flush(void* _self) {
+  FDOutput* self = _self;
+  return fflush(self->file) == 0;
+}
+
+static void fd_output_close(void* _self) {
+  FDOutput* self = _self;
+  fclose(self->file);
+  free(self);
+}
+
+static Output_Class fd_output_class = {
+  .write = fd_output_write,
+  .put = fd_output_put,
+  .flush = fd_output_flush,
+  .close = fd_output_close,
 };
