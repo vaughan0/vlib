@@ -6,5 +6,6 @@
 SUITE(vector);
 SUITE(heap);
 SUITE(hashtable);
+SUITE(llist);
 SUITE(gqi);
 SUITE(io);
