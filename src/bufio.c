@@ -6,11 +6,11 @@
 
 /* Input */
 
-static Input_Class buf_input_class;
+static Input_Impl buf_input_impl;
 
 void* buf_input_new(Input* wrap, size_t buffer) {
   BufInput* self = malloc(sizeof(BufInput));
-  self->base._class = &buf_input_class;
+  self->base._impl = &buf_input_impl;
   self->in = wrap;
   self->buf = buffer_new(buffer);
   self->close_backend = true;
@@ -49,7 +49,7 @@ static void buf_input_unget(void* _self) {
   self->buf->read--;
 }
 
-static Input_Class buf_input_class = {
+static Input_Impl buf_input_impl = {
   .read = buf_input_read,
   .get = buf_input_get,
   .unget = buf_input_unget,
@@ -58,11 +58,11 @@ static Input_Class buf_input_class = {
 
 /* Output */
 
-static Output_Class buf_output_class;
+static Output_Impl buf_output_impl;
 
 void* buf_output_new(Output* wrap, size_t buffer) {
   BufOutput* self = malloc(sizeof(BufOutput));
-  self->base._class = &buf_output_class;
+  self->base._impl = &buf_output_impl;
   self->out = wrap;
   self->buf = buffer_new(buffer);
   self->close_backend = true;
@@ -101,7 +101,7 @@ static void buf_output_close(void* _self) {
   free(self);
 }
 
-static Output_Class buf_output_class = {
+static Output_Impl buf_output_impl = {
   .write = buf_output_write,
   .put = buf_output_put,
   .flush = buf_output_flush,

@@ -11,10 +11,10 @@
 /* Base functions */
 
 int64_t io_read(Input* in, char* dst, size_t n) {
-  if (in->_class->read) {
+  if (in->_impl->read) {
     return call(in, read, dst, n);
   }
-  assert(in->_class->get);
+  assert(in->_impl->get);
   unsigned r = 0;
   while (r < n) {
     int ch = call(in, get);
@@ -24,23 +24,23 @@ int64_t io_read(Input* in, char* dst, size_t n) {
   return r;
 }
 int io_get(Input* in) {
-  if (in->_class->get) {
+  if (in->_impl->get) {
     return call(in, get);
   }
-  assert(in->_class->read);
+  assert(in->_impl->read);
   char ch;
   return call(in, read, &ch, 1) ? ch : -1;
 }
 void io_unget(Input* in) {
-  assert(in->_class->unget);
+  assert(in->_impl->unget);
   call(in, unget);
 }
 
 int64_t io_write(Output* out, const char* src, size_t n) {
-  if (out->_class->write) {
+  if (out->_impl->write) {
     return call(out, write, src, n);
   }
-  assert(out->_class->put);
+  assert(out->_impl->put);
   unsigned w = 0;
   while (w < n) {
     if (call(out, put, src[w++])) break;
@@ -57,14 +57,14 @@ int64_t io_write_full(Output* out, const char* src, size_t n) {
   return written;
 }
 bool io_put(Output* out, char ch) {
-  if (out->_class->put) {
+  if (out->_impl->put) {
     return call(out, put, ch);
   }
-  assert(out->_class->write);
+  assert(out->_impl->write);
   return io_write(out, &ch, 1) == 1;
 }
 bool io_flush(Output* output) {
-  assert(output->_class->flush);
+  assert(output->_impl->flush);
   return call(output, flush);
 }
 
@@ -104,11 +104,11 @@ data(StringInput) {
   const char* src;
 };
 
-static Input_Class string_input_class;
+static Input_Impl string_input_impl;
 
 Input* string_input_new(const char* src, size_t sz) {
   StringInput* self = malloc(sizeof(StringInput));
-  self->base._class = &string_input_class;
+  self->base._impl = &string_input_impl;
   self->size = sz;
   self->offset = 0;
   self->src = src;
@@ -137,7 +137,7 @@ static void string_input_unget(void* _self) {
   self->offset--;
 }
 
-static Input_Class string_input_class = {
+static Input_Impl string_input_impl = {
   .read = string_input_read,
   .get = string_input_get,
   .unget = string_input_unget,
@@ -159,11 +159,11 @@ data(StringOutput) {
   Piece*      last;
 };
 
-static Output_Class string_output_class;
+static Output_Impl string_output_impl;
 
 Output* string_output_new(size_t initcap) {
   StringOutput* self = malloc(sizeof(StringOutput));
-  self->base._class = &string_output_class;
+  self->base._impl = &string_output_impl;
   self->offset = 0;
   self->first = malloc(sizeof(Piece) + initcap);
   self->first->next = NULL;
@@ -260,7 +260,7 @@ const char* string_output_data(Output* _self, size_t* store_size) {
   return p->data;
 }
 
-static Output_Class string_output_class = {
+static Output_Impl string_output_impl = {
   .write = string_output_write,
   .put = string_output_put,
   .flush = string_output_flush,
@@ -274,13 +274,13 @@ data(FDInput) {
   FILE*   file;
 };
 
-static Input_Class fd_input_class;
+static Input_Impl fd_input_impl;
 
 Input* fd_input_new(int fd) {
   FILE* file = fdopen(fd, "r");
   if (!file) return NULL;
   FDInput* self = malloc(sizeof(FDInput));
-  self->base._class = &fd_input_class;
+  self->base._impl = &fd_input_impl;
   self->file = file;
   return &self->base;
 }
@@ -301,7 +301,7 @@ static void fd_input_close(void* _self) {
   free(self);
 }
 
-static Input_Class fd_input_class = {
+static Input_Impl fd_input_impl = {
   .read = fd_input_read,
   .get = fd_input_get,
   .close = fd_input_close,
@@ -312,13 +312,13 @@ data(FDOutput) {
   FILE*   file;
 };
 
-static Output_Class fd_output_class;
+static Output_Impl fd_output_impl;
 
 Output* fd_output_new(int fd) {
   FILE* file = fdopen(fd, "w");
   if (!file) return NULL;
   FDOutput* self = malloc(sizeof(FDOutput));
-  self->base._class = &fd_output_class;
+  self->base._impl = &fd_output_impl;
   self->file = file;
   return &self->base;
 }
@@ -344,7 +344,7 @@ static void fd_output_close(void* _self) {
   free(self);
 }
 
-static Output_Class fd_output_class = {
+static Output_Impl fd_output_impl = {
   .write = fd_output_write,
   .put = fd_output_put,
   .flush = fd_output_flush,
@@ -362,7 +362,7 @@ static int null_input_get(void* self) {
 static void null_input_unget(void* self) {}
 static void null_input_close(void* self) {}
 
-static Input_Class null_input_class = {
+static Input_Impl null_input_impl = {
   .read = null_input_read,
   .get = null_input_get,
   .unget = null_input_unget,
@@ -370,7 +370,7 @@ static Input_Class null_input_class = {
 };
 
 Input null_input = {
-  ._class = &null_input_class,
+  ._impl = &null_input_impl,
 };
 
 static int64_t null_output_write(void* self, const char* src, size_t n) {
@@ -384,7 +384,7 @@ static bool null_output_flush(void* self) {
 }
 static void null_output_close(void* self) {}
 
-static Output_Class null_output_class = {
+static Output_Impl null_output_impl = {
   .write = null_output_write,
   .put = null_output_put,
   .flush = null_output_flush,
@@ -392,7 +392,7 @@ static Output_Class null_output_class = {
 };
 
 Output null_output = {
-  ._class = &null_output_class,
+  ._impl = &null_output_impl,
 };
 
 /* Zero input */
@@ -407,7 +407,7 @@ static int zero_input_get(void* self) {
 static void zero_input_unget(void* self) {}
 static void zero_input_close(void* self) {}
 
-static Input_Class zero_input_class = {
+static Input_Impl zero_input_impl = {
   .read = zero_input_read,
   .get = zero_input_get,
   .unget = zero_input_unget,
@@ -415,5 +415,5 @@ static Input_Class zero_input_class = {
 };
 
 Input zero_input = {
-  ._class = &zero_input_class,
+  ._impl = &zero_input_impl,
 };

@@ -4,18 +4,20 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#include <vlib/std.h>
+
 typedef uint64_t (*Hasher)(const void* data, size_t sz);
 
 // Returns 0 if keys are equal; anything else means not equal.
 typedef int (*Equaler)(const void* k1, const void* k2, size_t sz);
 
-typedef struct HT_Bucket {
+data(HT_Bucket) {
   struct HT_Bucket* next;
   uint64_t          hash;
   char              data[0];  // key + value
-} HT_Bucket;
+};
 
-typedef struct Hashtable {
+data(Hashtable) {
   Hasher      hasher;       // hash function
   Equaler     equaler;      // equality tester
   size_t      elemsz;       // size of each value
@@ -26,7 +28,7 @@ typedef struct Hashtable {
   size_t      _cap;
   HT_Bucket** _buckets;
   size_t      _maxsize;     // precalculated maximum size before a rehash is needed
-} Hashtable;
+};
 
 void hashtable_init(Hashtable* ht, Hasher h, Equaler e, size_t keysz, size_t elemsz, size_t capacity, double loadfactor);
 void hashtable_close(Hashtable* ht);
@@ -44,11 +46,11 @@ void hashtable_remove(Hashtable* ht, const void* key, void* oldkey);
 
 /* Iteration */
 
-typedef struct HT_Iter {
+data(HT_Iter) {
   Hashtable*  ht;
   HT_Bucket*  bucket;
   unsigned    index;
-} HT_Iter;
+};
 
 // Initializes an iterator
 void hashtable_iter(Hashtable* ht, HT_Iter* iter);

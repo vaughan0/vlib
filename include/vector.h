@@ -5,12 +5,14 @@
 #include <assert.h>
 #include <stddef.h>
 
-typedef struct Vector {
+#include <vlib/std.h>
+
+data(Vector) {
   size_t    size;   // number of elements
   size_t    elemsz; // size of each element
   char*     _data;  // data where elements are stored
   size_t    _cap;   // maximum number of elements that data can hold
-} Vector;
+};
 
 void vector_init(Vector* v, size_t elemsz, size_t capacity);
 void vector_close(Vector* v);

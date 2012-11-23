@@ -46,7 +46,7 @@ void gqis_release(GQI_String* str) {
 
 int gqi_query(GQI* instance, GQI_String* input, GQI_String* result) {
   gqis_acquire(input);
-  int r = instance->_class->query(instance, input, result);
+  int r = instance->_impl->query(instance, input, result);
   if (r) assert(result->str);
   gqis_release(input);
   return r;
@@ -78,13 +78,13 @@ void gqi_release(GQI* instance) {
   assert(instance->_refs > 0);
   instance->_refs--;
   if (instance->_refs == 0) {
-    instance->_class->close(instance);
+    instance->_impl->close(instance);
   }
 }
 
-void gqi_init(void* _instance, GQI_Class* cls) {
+void gqi_init(void* _instance, GQI_Impl* cls) {
   GQI* instance = _instance;
-  instance->_class = cls;
+  instance->_impl = cls;
   instance->_refs = 1;
 }
 
@@ -121,14 +121,14 @@ static int default_query(void* _self, GQI_String* input, GQI_String* result) {
   return 0;
 }
 
-static GQI_Class default_class = {
+static GQI_Impl default_impl = {
   .query = default_query,
   .close = free,
 };
 
 GQI* gqi_new_default(const GQI_String* value) {
   GQI_Value* self = malloc(sizeof(GQI_Value) + value->sz);
-  gqi_init(self, &default_class);
+  gqi_init(self, &default_impl);
   self->sz = value->sz;
   memcpy(self->value, value->str, value->sz);
   return (GQI*)self;
@@ -144,14 +144,14 @@ static int value_query(void* _self, GQI_String* input, GQI_String* result) {
   return 0;
 }
 
-static GQI_Class value_class = {
+static GQI_Impl value_impl = {
   .query = value_query,
   .close = free,
 };
 
 GQI* gqi_new_value(const GQI_String* value) {
   GQI_Value* self = malloc(sizeof(GQI_Value) + value->sz);
-  gqi_init(self, &value_class);
+  gqi_init(self, &value_impl);
   self->sz = value->sz;
   memcpy(self->value, value->str, value->sz);
   return (GQI*)self;
@@ -198,14 +198,14 @@ static void mux_close(void* _self) {
   free(_self);
 }
 
-static GQI_Class mux_class = {
+static GQI_Impl mux_impl = {
   .query = mux_query,
   .close = mux_close,
 };
 
 GQI* gqi_new_mux() {
   GQI_Mux* self = malloc(sizeof(GQI_Mux));
-  gqi_init(self, &mux_class);
+  gqi_init(self, &mux_impl);
   self->first = NULL;
   self->last = NULL;
   return (GQI*)self;
@@ -266,14 +266,14 @@ static void first_close(void* _self) {
   free(self);
 }
 
-static GQI_Class first_class = {
+static GQI_Impl first_impl = {
   .query = first_query,
   .close = first_close,
 };
 
 GQI* gqi_new_first() {
   GQI_First* self = malloc(sizeof(GQI_First));
-  gqi_init(self, &first_class);
+  gqi_init(self, &first_impl);
   self->root = NULL;
   self->last = NULL;
   return (GQI*)self;
@@ -351,14 +351,14 @@ static void memoize_close(void* _self) {
   free(self);
 }
 
-static GQI_Class memoize_class = {
+static GQI_Impl memoize_impl = {
   .query = memoize_query,
   .close = memoize_close,
 };
 
 GQI* gqi_new_memoize(GQI* backend) {
   GQI_Memoize* self = malloc(sizeof(GQI_Memoize));
-  gqi_init(self, &memoize_class);
+  gqi_init(self, &memoize_impl);
   self->backend = backend;
   gqi_acquire(backend);
   hashtable_init(&self->ht, gqis_hasher, gqis_equaler, sizeof(GQI_String), sizeof(GQI_String), 7, 0.75);

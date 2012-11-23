@@ -9,13 +9,15 @@
 #include <string.h>
 #include <stdint.h>
 
+#include <vlib/std.h>
+
 /* GQI Strings */
 
-typedef struct GQI_String {
+data(GQI_String) {
   const char* str;
   size_t      sz;
   unsigned    refs;
-} GQI_String;
+};
 
 /**
  * GQI_String initialization:
@@ -42,7 +44,7 @@ void gqis_release(GQI_String* str);
 
 /* Main interface */
 
-typedef struct GQI_Class {
+data(GQI_Impl) {
 
   /**
    * Perform a General Query given an input string.
@@ -53,14 +55,14 @@ typedef struct GQI_Class {
 
   void (*close)(void* _self);
 
-} GQI_Class;
+};
 
 // Base GQI class. All GQI instances should have a struct GQI as the first field, or be
 // pointers to a struct GQI (it's the same thing).
-typedef struct GQI {
-  GQI_Class*  _class;
+data(GQI) {
+  GQI_Impl*   _impl;
   int         _refs;
-} GQI;
+};
 
 // Main query function. After returning, result will be an initialized GQI_String.
 // gqis_release() should be called on the result once it is finished with.
@@ -73,7 +75,7 @@ int gqic_query(GQI* instance, const char* query, char** result);
 // Utility for GQI implementations.
 // After initializing a GQI instance the reference counter will be set to 1, which means
 // that gqi_release() must be called at some point in the future.
-void gqi_init(void* _instance, GQI_Class* cls);
+void gqi_init(void* _instance, GQI_Impl* cls);
 
 /**
  * GQI reference count manipulation.
@@ -97,7 +99,7 @@ int gqis_equaler(const void* a, const void* b, size_t sz);
  *      ....
  *    }
  * 
- * Create a GQI_Class value with your implementation's query and close methods.
+ * Create a GQI_Impl value with your implementation's query and close methods.
  * Call gqi_init to initialize an instance of your implementation.
  *
  * Tip: the standard free() function is useful to use for the close() method if your

@@ -295,14 +295,14 @@ static void gqi_ini_close(void* _self) {
   free(self);
 }
 
-static GQI_Class gqi_ini_class = {
+static GQI_Impl gqi_ini_impl = {
   .query = gqi_ini_query,
   .close = gqi_ini_close,
 };
 
 GQI* gqi_new_ini(INI* ini, bool free_on_close) {
   GQI_INI* self = malloc(sizeof(GQI_INI));
-  gqi_init(self, &gqi_ini_class);
+  gqi_init(self, &gqi_ini_impl);
   self->ini = ini;
   self->owns = (free_on_close != 0);
   return (GQI*)self;

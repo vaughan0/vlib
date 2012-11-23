@@ -3,9 +3,7 @@
 #include <string.h>
 
 #include <vlib/buffer.h>
-
-#define MAX(a,b) ((a) > (b) ? (a) : (b))
-#define MIN(a,b) ((a) > (b) ? (b) : (a))
+#include <vlib/util.h>
 
 Buffer* buffer_new(size_t cap) {
   Buffer* self = malloc(sizeof(Buffer) + cap);

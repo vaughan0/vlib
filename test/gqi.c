@@ -79,7 +79,7 @@ static int gqi_counter_query(void* _self, GQI_String* input, GQI_String* result)
 }
 static int gqi_memoize() {
 
-  GQI_Class cls = {
+  GQI_Impl cls = {
     .query = gqi_counter_query,
     .close = free,
   };
