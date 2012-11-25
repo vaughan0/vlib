@@ -120,62 +120,54 @@ static void push_state(rich_InMem* self, void* handler, void* data) {
 
 /* Sink implementation */
 
-static error_t sink_nil(void* _self) {
+static void sink_nil(void* _self) {
   rich_InMem* self = _self;
   rich_Value* val = rich_inmem_nil();
   process(self, val);
-  return 0;
 }
 
-static error_t sink_bool(void* _self, bool b) {
+static void sink_bool(void* _self, bool b) {
   rich_InMem* self = _self;
   rich_Bool* val = rich_inmem_bool(b);
   process(self, val);
-  return 0;
 }
 
-static error_t sink_int(void* _self, int i) {
+static void sink_int(void* _self, int i) {
   rich_InMem* self = _self;
   rich_Int* val = rich_inmem_int(i);
   process(self, val);
-  return 0;
 }
 
-static error_t sink_float(void* _self, double d) {
+static void sink_float(void* _self, double d) {
   rich_InMem* self = _self;
   rich_Float* val = rich_inmem_float(d);
   process(self, val);
-  return 0;
 }
 
-static error_t sink_string(void* _self, const char* str, size_t sz) {
+static void sink_string(void* _self, const char* str, size_t sz) {
   rich_InMem* self = _self;
   rich_String* val = rich_inmem_string(str, sz);
   process(self, val);
-  return 0;
 }
 
-static error_t begin_array(void* _self) {
+static void begin_array(void* _self) {
   rich_InMem* self = _self;
   rich_Array* array = rich_inmem_array();
   process(self, array);
   push_state(self, handler_array, array);
-  return 0;
 }
-static error_t end_array(void* _self) {
+static void end_array(void* _self) {
   rich_InMem* self = _self;
   vector_pop(&self->_states);
-  return 0;
 }
 
-static error_t begin_map(void* _self) {
+static void begin_map(void* _self) {
   rich_InMem* self = _self;
   rich_Map* map = rich_inmem_map();
   process(self, map);
   push_state(self, handler_map, map);
-  return 0;
 }
-static error_t sink_key(void* _self, const char* str, size_t sz) {
+static void sink_key(void* _self, const char* str, size_t sz) {
   rich_InMem* self = _self;
   State* s = vector_back(&self->_states);
   assert(s->handler == handler_map);
@@ -183,12 +175,10 @@ static error_t sink_key(void* _self, const char* str, size_t sz) {
   self->_key = malloc(sizeof(rich_Key) + sz);
   self->_key->size = sz;
   memcpy(self->_key->data, str, sz);
-  return 0;
 }
-static error_t end_map(void* _self) {
+static void end_map(void* _self) {
   rich_InMem* self = _self;
   vector_pop(&self->_states);
-  return 0;
 }
 
 static void sink_close(void* _self) {
@@ -211,68 +201,65 @@ static rich_Sink_Impl sink_impl = {
 
 /* Source implementation */
 
-static error_t dump_value(rich_Sink* to, void* val) {
-  error_t err;
+static void dump_value(rich_Sink* to, void* val) {
   rich_String* sval;
   rich_Array* array;
   rich_Map* map;
   switch (((rich_Value*)val)->type) {
 
     case RICH_NIL:
-      if ((err = call(to, sink_nil)) < 0) return err;
+      call(to, sink_nil);
       break;
     case RICH_BOOL:
-      if ((err = call(to, sink_bool, ((rich_Bool*)val)->value)) < 0) return err;
+      call(to, sink_bool, ((rich_Bool*)val)->value);
       break;
     case RICH_INT:
-      if ((err = call(to, sink_int, ((rich_Int*)val)->value)) < 0) return err;
+      call(to, sink_int, ((rich_Int*)val)->value);
       break;
     case RICH_FLOAT:
-      if ((err = call(to, sink_float, ((rich_Float*)val)->value)) < 0) return err;
+      call(to, sink_float, ((rich_Float*)val)->value);
       break;
     case RICH_STRING:
       sval = val;
-      if ((err = call(to, sink_string, sval->value, sval->size)) < 0) return err;
+      call(to, sink_string, sval->value, sval->size);
       break;
 
     case RICH_ARRAY:
       array = val;
-      if ((err = call(to, begin_array)) < 0) return err;
+      call(to, begin_array);
       for (unsigned i = 0; i < array->value.size; i++) {
-        if ((err = dump_value(to, *(void**)vector_get(&array->value, i))) < 0) return err;
+        dump_value(to, *(void**)vector_get(&array->value, i));
       }
-      if ((err = call(to, end_array)) < 0) return err;
+      call(to, end_array);
       break;
 
     case RICH_MAP:
       map = val;
-      if ((err = call(to, begin_map)) < 0) return err;
+      call(to, begin_map);
       HT_Iter iter;
       hashtable_iter(&map->value, &iter);
       void *_key, *_value;
       while ( (_key = hashtable_next(&iter, &_value)) != NULL ) {
         rich_Key* key = *(rich_Key**)_key;
         void* value = *(void**)_value;
-        if ((err = call(to, sink_key, key->data, key->size)) < 0) return err;
-        if ((err = dump_value(to, value)) < 0) return err;
+        call(to, sink_key, key->data, key->size);
+        dump_value(to, value);
       }
-      if ((err = call(to, end_map)) < 0) return err;
+      call(to, end_map);
       break;
 
   }
-  return 0;
 }
 
-static error_t read_value(void* _self, rich_Sink* to) {
+static void read_value(void* _self, rich_Sink* to) {
   rich_InMem* self = container_of(_self, rich_InMem, source);
   if (self->_values.size > 0) {
     void* val = *(void**)llist_front(&self->_values);
     llist_pop_front(&self->_values);
-    error_t r = dump_value(to, val);
+    dump_value(to, val);
     rich_inmem_free(val);
-    return r;
   }
-  return VERR_EOF;
+  verr_raise(VERR_EOF);
 }
 
 static void source_close(void* _self) {

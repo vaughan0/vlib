@@ -81,28 +81,24 @@ void* buf_output_new(Output* wrap, size_t buffer) {
 
 static int64_t buf_output_write(void* _self, const char* src, size_t n) {
   BufOutput* self = _self;
-  error_t err;
   if (buffer_avail_write(self->buf) == 0) {
-    if ((err = buffer_flush(self->buf, self->out))) return err;
+    buffer_flush(self->buf, self->out);
   }
   return buffer_write(self->buf, src, n);
 }
 
-static error_t buf_output_put(void* _self, char ch) {
+static void buf_output_put(void* _self, char ch) {
   BufOutput* self = _self;
-  error_t err;
   if (buffer_avail_write(self->buf) == 0) {
-    if ((err = buffer_flush(self->buf, self->out))) return err;
+    buffer_flush(self->buf, self->out);
   }
   self->buf->data[self->buf->write++] = ch;
-  return 1;
 }
 
-static error_t buf_output_flush(void* _self) {
+static void buf_output_flush(void* _self) {
   BufOutput* self = _self;
-  error_t err;
-  if ((err = buffer_flush(self->buf, self->out))) return err;
-  return call(self->out, flush);
+  buffer_flush(self->buf, self->out);
+  call(self->out, flush);
 }
 
 static void buf_output_close(void* _self) {

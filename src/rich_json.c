@@ -45,14 +45,13 @@ data(Parser) {
   rich_Source base;
   Input*      in;
   bool        read_tok;
-  error_t     error;
   Vector      cbuf[1];
   Token       curtok;
 };
 
 // Tokenizing
 
-static error_t parse_string(Parser* p) {
+static void parse_string(Parser* p) {
   p->curtok.type = TKN_STRING;
   p->curtok.sval = NULL;
   p->cbuf->size = 0;
@@ -79,11 +78,11 @@ static error_t parse_string(Parser* p) {
           break;
 
         default:
-          if (ch < 0) return VERR_EOF;
+          if (ch < 0) verr_raise(VERR_EOF);
           break;
       }
     } else if (ch < 0) {
-      return VERR_EOF;
+      verr_raise(VERR_EOF);
     }
 
     *(char*)vector_push(p->cbuf) = ch;
@@ -92,9 +91,8 @@ static error_t parse_string(Parser* p) {
   p->curtok.slen = p->cbuf->size;
   p->curtok.sval = malloc(p->curtok.slen);
   memcpy(p->curtok.sval, p->cbuf->_data, p->curtok.slen);
-  return 0;
 }
-static error_t parse_number(Parser* p, int ch) {
+static void parse_number(Parser* p, int ch) {
 
   bool negative = false;
   bool is_integral = true;
@@ -107,7 +105,7 @@ static error_t parse_number(Parser* p, int ch) {
   if (ch == '-') {
     negative = true;
     ch = io_get(p->in);
-    if (ch < 0) return VERR_EOF;
+    if (ch < 0) verr_raise(VERR_EOF);
   }
 
   // Parse first integral part
@@ -120,7 +118,7 @@ static error_t parse_number(Parser* p, int ch) {
       ch = io_get(p->in);
     } while (ch >= '0' && ch <= '9');
   } else {
-    return VERR_MALFORMED;
+    verr_raise(VERR_MALFORMED);
   }
   if (ch < 0) {
     goto Done;
@@ -141,7 +139,7 @@ static error_t parse_number(Parser* p, int ch) {
   if (ch == 'e' || ch == 'E') {
     is_integral = false;
     ch = io_get(p->in);
-    if (ch < 0) return VERR_EOF;
+    if (ch < 0) verr_raise(VERR_EOF);
 
     bool neg_exp = false;
     if (ch == '-') {
@@ -150,7 +148,7 @@ static error_t parse_number(Parser* p, int ch) {
     } else if (ch == '+') {
       ch = io_get(p->in);
     }
-    if (ch < 0) return VERR_EOF;
+    if (ch < 0) verr_raise(VERR_EOF);
 
     while (ch >= '0' && ch <= '9') {
       exponent = exponent * 10 + (ch - '0');
@@ -176,10 +174,9 @@ Done:
     p->curtok.type = TKN_FLOAT;
     p->curtok.fval = floating;
   }
-  return 0;
 
 }
-static error_t parse_primitive(Parser* p, int ch) {
+static void parse_primitive(Parser* p, int ch) {
   if (ch == 't') {
     // "true"
     if (io_get(p->in) != 'r') goto Error;
@@ -202,14 +199,13 @@ static error_t parse_primitive(Parser* p, int ch) {
     if (io_get(p->in) != 'l') goto Error;
     p->curtok.type = TKN_NULL;
   } else {
-    return VERR_MALFORMED;
+    verr_raise(VERR_MALFORMED);
   }
-  return 0;
 Error:
-  return (ch < 0) ? VERR_EOF : VERR_MALFORMED;
+  verr_raise( (ch < 0) ? VERR_EOF : VERR_MALFORMED );
 }
 
-static error_t gettok(Parser* p) {
+static void gettok(Parser* p) {
   if (p->curtok.type == TKN_STRING && p->curtok.sval) {
     free(p->curtok.sval);
     p->curtok.sval = NULL;
@@ -230,127 +226,120 @@ static error_t gettok(Parser* p) {
       break;
 
     case '"':
-      p->error = parse_string(p);
+      parse_string(p);
       break;
 
     case '0': case '1': case '2': case '3': case '4':
     case '5': case '6': case '7': case '8': case '9':
     case '-':
-      p->error = parse_number(p, ch);
+      parse_number(p, ch);
       break;
 
     default:
       if (ch < 0) {
         p->curtok.type = TKN_EOF;
       } else {
-        p->error = parse_primitive(p, ch);
+        parse_primitive(p, ch);
       }
       break;
 
   }
 
-  return p->error;
 }
 
 // Parsing
 
-static error_t parse_value(Parser*, rich_Sink*);
-static error_t parse_array(Parser* p, rich_Sink* to) {
-  error_t err = 0;
+static void parse_value(Parser*, rich_Sink*);
+static void parse_array(Parser* p, rich_Sink* to) {
   // Eat '[' token
-  if ((err = gettok(p)) < 0) return err;
-  if ((err = call(to, begin_array)) < 0) return err;
+  gettok(p);
+  call(to, begin_array);
   if (p->curtok.type != TKN_RSB) for (;;) {
-    if ((err = parse_value(p, to)) < 0) return err;
+    parse_value(p, to);
     if (p->curtok.type == TKN_COMMA) {
-      if ((err = gettok(p)) < 0) return err;
+      gettok(p);
       continue;
     } else if (p->curtok.type == TKN_RSB) {
       break;
     } else {
-      return VERR_MALFORMED;
+      verr_raise(VERR_MALFORMED);
     }
   }
-  if ((err = gettok(p)) < 0) return err;
-  if ((err = call(to, end_array)) < 0) return err;
-  return 0;
+  gettok(p);
+  call(to, end_array);
 }
-static error_t parse_object(Parser* p, rich_Sink* to) {
-  error_t err = 0;
+static void parse_object(Parser* p, rich_Sink* to) {
   // Eat '{' token
-  if ((err = gettok(p)) < 0) return err;
-  if ((err = call(to, begin_map)) < 0) return err;
+  gettok(p);
+  call(to, begin_map);
   if (p->curtok.type != TKN_RCB) for (;;) {
     // Expect a string key
-    if (p->curtok.type != TKN_STRING) return VERR_MALFORMED;
-    if ((err = call(to, sink_key, p->curtok.sval, p->curtok.slen)) < 0) return err;
-    if ((err = gettok(p)) < 0) return err;
+    if (p->curtok.type != TKN_STRING) verr_raise(VERR_MALFORMED);
+    call(to, sink_key, p->curtok.sval, p->curtok.slen);
+    gettok(p);
     // Then a colon
-    if (p->curtok.type != TKN_COLON) return VERR_MALFORMED;
-    if ((err = gettok(p)) < 0) return err;
+    if (p->curtok.type != TKN_COLON) verr_raise(VERR_MALFORMED);
+    gettok(p);
     // Then a value
-    if ((err = parse_value(p, to)) < 0) return err;
+    parse_value(p, to);
     // Then a comma or RCB
     if (p->curtok.type == TKN_COMMA) {
-      if ((err = gettok(p)) < 0) return err;
+      gettok(p);
       continue;
     } else if (p->curtok.type == TKN_RCB) {
       break;
     } else {
-      return VERR_MALFORMED;
+      verr_raise(VERR_MALFORMED);
     }
   }
-  if ((err = gettok(p)) < 0) return err;
-  return call(to, end_map);
+  gettok(p);
+  call(to, end_map);
 }
-static error_t parse_value(Parser* p, rich_Sink* to) {
-  error_t err = 0;
+static void parse_value(Parser* p, rich_Sink* to) {
   switch (p->curtok.type) {
     case TKN_EOF:
-      err = VERR_EOF;
+      verr_raise(VERR_EOF);
       break;
     case TKN_INT:
-      err = call(to, sink_int, p->curtok.ival);
+      call(to, sink_int, p->curtok.ival);
       gettok(p);
       break;
     case TKN_FLOAT:
-      err = call(to, sink_float, p->curtok.fval);
+      call(to, sink_float, p->curtok.fval);
       gettok(p);
       break;
     case TKN_STRING:
-      err = call(to, sink_string, p->curtok.sval, p->curtok.slen);
+      call(to, sink_string, p->curtok.sval, p->curtok.slen);
       free(p->curtok.sval);
       p->curtok.sval = NULL;
       gettok(p);
       break;
     case TKN_BOOL:
-      err = call(to, sink_bool, p->curtok.bval);
+      call(to, sink_bool, p->curtok.bval);
       gettok(p);
       break;
     case TKN_NULL:
-      err = call(to, sink_nil);
+      call(to, sink_nil);
       gettok(p);
       break;
     case TKN_LSB:
-      err = parse_array(p, to);
+      parse_array(p, to);
       break;
     case TKN_LCB:
-      err = parse_object(p, to);
+      parse_object(p, to);
       break;
     default:
-      err = VERR_MALFORMED;
+      verr_raise(VERR_MALFORMED);
   }
-  if (err < 0) return err;
-  return p->error;
 }
 
-static error_t json_read_value(void* _self, rich_Sink* to) {
+static void json_read_value(void* _self, rich_Sink* to) {
   Parser* p = _self;
   if (!p->read_tok) {
     gettok(p);
     p->read_tok = true;
   }
-  return parse_value(p, to);
+  parse_value(p, to);
 }
 
 static void source_close(void* _self) {
@@ -375,124 +364,121 @@ data(Dumper) {
 };
 
 data(State) {
-  error_t (*handler)(Dumper* self, bool first);
+  void    (*handler)(Dumper* self, bool first);
   bool    first;
 };
 
-static error_t null_pre(Dumper* self, bool b) {
-  return 0;
-}
-static error_t comma_pre(Dumper* self, bool first) {
+static void null_pre(Dumper* self, bool b) {}
+static void comma_pre(Dumper* self, bool first) {
   if (first) {
     State* st = vector_back(&self->states);
     st->first = false;
-    return 0;
   } else {
-    return io_put(self->out, ',');
+    io_put(self->out, ',');
   }
 }
 
 #define WRITE_STR(str) io_write_full(self->out, (str), sizeof(str))
-#define PRE() Dumper* self = _self; error_t err; \
+#define PRE() Dumper* self = _self; \
   { State st = *(State*)vector_back(&self->states); \
-    if ((err = st.handler(self, st.first)) < 0) return err; }
+    st.handler(self, st.first); }
 
-static error_t sink_nil(void* _self) {
+static void sink_nil(void* _self) {
   PRE();
-  return WRITE_STR("null");
+  WRITE_STR("null");
 }
-static error_t sink_bool(void* _self, bool val) {
+static void sink_bool(void* _self, bool val) {
   PRE();
-  return val ? WRITE_STR("true") : WRITE_STR("false");
+  if (val)
+    WRITE_STR("true");
+  else
+    WRITE_STR("false");
 }
-static error_t sink_int(void* _self, int val) {
+static void sink_int(void* _self, int val) {
   PRE();
   char buf[100];
   int r = sprintf(buf, "%d", val);
-  return io_write_full(self->out, buf, r);
+  io_write_full(self->out, buf, r);
 }
-static error_t sink_float(void* _self, double val) {
+static void sink_float(void* _self, double val) {
   PRE();
   char buf[100];
   int r = sprintf(buf, "%le", val);
-  return io_write_full(self->out, buf, r);
+  io_write_full(self->out, buf, r);
 }
-static error_t dump_string(Dumper* self, const char* str, size_t sz) {
-  error_t err;
-  if ((err = io_put(self->out, '\"')) < 0) return err;
+static void dump_string(Dumper* self, const char* str, size_t sz) {
+  io_put(self->out, '\"');
   for (unsigned i = 0; i < sz; i++) {
     switch (str[i]) {
       case '"':
       case '\\':
       case '/':
-        if ((err = io_put(self->out, '\\')) < 0) return err;
-        if ((err = io_put(self->out, str[i])) < 0) return err;
+        io_put(self->out, '\\');
+        io_put(self->out, str[i]);
         break;
       case '\b':
-        if ((err = io_write_full(self->out, "\\b", 2)) < 0) return err;
+        io_write_full(self->out, "\\b", 2);
         break;
       case '\f':
-        if ((err = io_write_full(self->out, "\\f", 2)) < 0) return err;
+        io_write_full(self->out, "\\f", 2);
         break;
       case '\n':
-        if ((err = io_write_full(self->out, "\\n", 2)) < 0) return err;
+        io_write_full(self->out, "\\n", 2);
         break;
       case '\r':
-        if ((err = io_write_full(self->out, "\\r", 2)) < 0) return err;
+        io_write_full(self->out, "\\r", 2);
         break;
       case '\t':
-        if ((err = io_write_full(self->out, "\\t", 2)) < 0) return err;
+        io_write_full(self->out, "\\t", 2);
         break;
       default:
-        if ((err = io_put(self->out, str[i])) < 0) return err;
+        io_put(self->out, str[i]);
     }
   }
-  if ((err = io_put(self->out, '\"')) < 0) return err;
-  return 0;
+  io_put(self->out, '\"');
 }
-static error_t sink_string(void* _self, const char* str, size_t sz) {
+static void sink_string(void* _self, const char* str, size_t sz) {
   PRE();
-  return dump_string(self, str, sz);
+  dump_string(self, str, sz);
 }
 
-static error_t begin_array(void* _self) {
+static void begin_array(void* _self) {
   PRE();
   State* st = vector_push(&self->states);
   st->handler = comma_pre;
   st->first = true;
-  return io_put(self->out, '[');
+  io_put(self->out, '[');
 }
-static error_t end_array(void* _self) {
+static void end_array(void* _self) {
   Dumper* self = _self;
   vector_pop(&self->states);
-  return io_put(self->out, ']');
+  io_put(self->out, ']');
 }
 
-static error_t begin_map(void* _self) {
+static void begin_map(void* _self) {
   PRE();
   State* st = vector_push(&self->states);
   st->handler = null_pre;
   st->first = true;
-  return io_put(self->out, '{');
+  io_put(self->out, '{');
 }
-static error_t sink_key(void* _self, const char* str, size_t sz) {
+static void sink_key(void* _self, const char* str, size_t sz) {
   Dumper* self = _self;
-  error_t err;
 
   State* st = vector_back(&self->states);
   if (st->first) {
     st->first = false;
   } else {
-    if ((err = io_put(self->out, ',')) < 0) return err;
+    io_put(self->out, ',');
   }
 
-  if ((err = dump_string(self, str, sz)) < 0) return err;
-  return io_put(self->out, ':');
+  dump_string(self, str, sz);
+  io_put(self->out, ':');
 }
-static error_t end_map(void* _self) {
+static void end_map(void* _self) {
   Dumper* self = _self;
   vector_pop(&self->states);
-  return io_put(self->out, '}');
+  io_put(self->out, '}');
 }
 
 static void sink_close(void* _self) {
@@ -533,7 +519,6 @@ static rich_Source* json_new_source(void* _self, Input* in) {
   p->base._impl = &source_impl;
   p->read_tok = false;
   p->in = in;
-  p->error = 0;
   p->curtok.sval = NULL;
   vector_init(p->cbuf, sizeof(char), 32);
   return &p->base;

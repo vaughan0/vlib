@@ -17,8 +17,8 @@ interface(Input) {
 
 interface(Output) {
   int64_t (*write)(void* self, const char* src, size_t n);
-  error_t (*put)(void* self, char ch);
-  error_t (*flush)(void* self);
+  void    (*put)(void* self, char ch);
+  void    (*flush)(void* self);
   void    (*close)(void* self);
 };
 
@@ -28,9 +28,9 @@ void        io_unget(Input* input);
 bool        io_eof(Input* input);
 
 int64_t     io_write(Output* output, const char* src, size_t n);
-int64_t     io_write_full(Output* output, const char* src, size_t n);
-error_t     io_put(Output* output, char ch);
-error_t     io_flush(Output* output);
+void        io_write_full(Output* output, const char* src, size_t n);
+void        io_put(Output* output, char ch);
+void        io_flush(Output* output);
 
 /* Utility functions */
 

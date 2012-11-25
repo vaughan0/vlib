@@ -29,7 +29,7 @@ int io_get(Input* in) {
   }
   assert(in->_impl->read);
   char ch;
-  return call(in, read, &ch, 1) ? ch : VERR_EOF;
+  return call(in, read, &ch, 1) ? ch : -1;
 }
 void io_unget(Input* in) {
   assert(in->_impl->unget);
@@ -52,29 +52,29 @@ int64_t io_write(Output* out, const char* src, size_t n) {
   assert(out->_impl->put);
   unsigned w = 0;
   while (w < n) {
-    if (call(out, put, src[w++])) break;
+    call(out, put, src[w++]);
   }
   return w;
 }
-int64_t io_write_full(Output* out, const char* src, size_t n) {
+void io_write_full(Output* out, const char* src, size_t n) {
   size_t written = 0;
   while (written < n) {
     int64_t r = io_write(out, src+written, n-written);
     if (r <= 0) break;
     written += r;
   }
-  return written == n ? written : VERR_IO;
+  if (written != n) verr_raise(VERR_IO);
 }
-error_t io_put(Output* out, char ch) {
+void io_put(Output* out, char ch) {
   if (out->_impl->put) {
-    return call(out, put, ch);
+    call(out, put, ch);
   }
   assert(out->_impl->write);
-  return (io_write(out, &ch, 1) == 1) ? 1 : VERR_IO;
+  if (io_write(out, &ch, 1) != 1) verr_raise(VERR_IO);
 }
-error_t io_flush(Output* output) {
+void io_flush(Output* output) {
   assert(output->_impl->flush);
-  return call(output, flush);
+  call(output, flush);
 }
 
 /* Utilities */
@@ -85,9 +85,8 @@ int64_t io_copy(Input* from, Output* to) {
   for (;;) {
     int64_t r = io_read(from, cbuf, sizeof(cbuf));
     if (r <= 0) break;
-    int64_t w = io_write_full(to, cbuf, r);
-    copied += w;
-    if (w != r) break;
+    io_write_full(to, cbuf, r);
+    copied += r;
   }
   return copied;
 }
@@ -97,9 +96,8 @@ int64_t io_copyn(Input* from, Output* to, size_t n) {
   while (copied < n) {
     int64_t r = io_read(from, cbuf, MIN(sizeof(cbuf), n-copied));
     if (r <= 0) break;
-    int64_t w = io_write_full(to, cbuf, r);
-    copied += w;
-    if (w != r) break;
+    io_write_full(to, cbuf, r);
+    copied += r;
   }
   return copied;
 }
@@ -212,18 +210,14 @@ static int64_t string_output_write(void* _self, const char* src, size_t n) {
   }
 }
 
-static error_t string_output_put(void* _self, char ch) {
+static void string_output_put(void* _self, char ch) {
   StringOutput* self = _self;
   if (self->offset == self->last->size) {
     make_piece(self);
   }
-  self->last->data[self->offset++] = ch;
-  return 1;
 }
 
-static error_t string_output_flush(void* self) {
-  return 1;
-}
+static void string_output_flush(void* self) { }
 
 static void string_output_close(void* _self) {
   StringOutput* self = _self;
@@ -365,14 +359,14 @@ static int64_t fd_output_write(void* _self, const char* src, size_t n) {
   return fwrite(src, 1, n, self->file);
 }
 
-static error_t fd_output_put(void* _self, char ch) {
+static void fd_output_put(void* _self, char ch) {
   FDOutput* self = _self;
-  return (fputc((int)ch, self->file) == EOF) ? VERR_EOF : 0;
+  if (fputc((int)ch, self->file) == EOF) verr_raise(VERR_IO);
 }
 
-static error_t fd_output_flush(void* _self) {
+static void fd_output_flush(void* _self) {
   FDOutput* self = _self;
-  return fflush(self->file) ? VERR_IO : 0;
+  if (fflush(self->file)) verr_raise(VERR_IO);
 }
 
 static void fd_output_close(void* _self) {
@@ -415,12 +409,8 @@ Input null_input = {
 static int64_t null_output_write(void* self, const char* src, size_t n) {
   return n;
 }
-static error_t null_output_put(void* self, char ch) {
-  return 0;
-}
-static error_t null_output_flush(void* self) {
-  return 0;
-}
+static void null_output_put(void* self, char ch) {}
+static void null_output_flush(void* self) {}
 static void null_output_close(void* self) {}
 
 static Output_Impl null_output_impl = {
