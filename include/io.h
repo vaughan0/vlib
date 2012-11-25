@@ -11,6 +11,7 @@ interface(Input) {
   int64_t (*read)(void* self, char* dst, size_t n);
   int     (*get)(void* self);
   void    (*unget)(void* self);
+  bool    (*eof)(void* self);
   void    (*close)(void* self);
 };
 
@@ -24,6 +25,7 @@ interface(Output) {
 int64_t     io_read(Input* input, char* dst, size_t n);
 int         io_get(Input* input);
 void        io_unget(Input* input);
+bool        io_eof(Input* input);
 
 int64_t     io_write(Output* output, const char* src, size_t n);
 int64_t     io_write_full(Output* output, const char* src, size_t n);
@@ -41,6 +43,7 @@ Input*      string_input_new(const char* src, size_t sz);
 
 Output*     string_output_new(size_t initcap);
 const char* string_output_data(Output* string_output, size_t* size);
+void        string_output_reset(Output* string_output);
 
 Input*      fd_input_new(int fd);
 Output*     fd_output_new(int fd);

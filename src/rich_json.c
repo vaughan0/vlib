@@ -44,6 +44,7 @@ data(Token) {
 data(Parser) {
   rich_Source base;
   Input*      in;
+  bool        read_tok;
   error_t     error;
   Vector      cbuf[1];
   Token       curtok;
@@ -215,7 +216,7 @@ static error_t gettok(Parser* p) {
   }
 
   int ch = io_get(p->in);
-  while (isspace(ch)) ch = io_get(p->in);
+  while (ch >= 0 && isspace(ch)) ch = io_get(p->in);
 
   switch (ch) {
 
@@ -257,12 +258,12 @@ static error_t parse_value(Parser*, rich_Sink*);
 static error_t parse_array(Parser* p, rich_Sink* to) {
   error_t err = 0;
   // Eat '[' token
-  if ((err = gettok(p))) return err;
-  if ((err = call(to, begin_array))) return err;
+  if ((err = gettok(p)) < 0) return err;
+  if ((err = call(to, begin_array)) < 0) return err;
   if (p->curtok.type != TKN_RSB) for (;;) {
-    if ((err = parse_value(p, to))) return err;
+    if ((err = parse_value(p, to)) < 0) return err;
     if (p->curtok.type == TKN_COMMA) {
-      if ((err = gettok(p))) return err;
+      if ((err = gettok(p)) < 0) return err;
       continue;
     } else if (p->curtok.type == TKN_RSB) {
       break;
@@ -270,28 +271,28 @@ static error_t parse_array(Parser* p, rich_Sink* to) {
       return VERR_MALFORMED;
     }
   }
-  if ((err = gettok(p))) return err;
-  if ((err = call(to, end_array))) return err;
+  if ((err = gettok(p)) < 0) return err;
+  if ((err = call(to, end_array)) < 0) return err;
   return 0;
 }
 static error_t parse_object(Parser* p, rich_Sink* to) {
   error_t err = 0;
   // Eat '{' token
-  if ((err = gettok(p))) return err;
-  if ((err = call(to, begin_map))) return err;
+  if ((err = gettok(p)) < 0) return err;
+  if ((err = call(to, begin_map)) < 0) return err;
   if (p->curtok.type != TKN_RCB) for (;;) {
     // Expect a string key
     if (p->curtok.type != TKN_STRING) return VERR_MALFORMED;
-    if ((err = call(to, sink_key, p->curtok.sval, p->curtok.slen))) return err;
-    if ((err = gettok(p))) return err;
+    if ((err = call(to, sink_key, p->curtok.sval, p->curtok.slen)) < 0) return err;
+    if ((err = gettok(p)) < 0) return err;
     // Then a colon
     if (p->curtok.type != TKN_COLON) return VERR_MALFORMED;
-    if ((err = gettok(p))) return err;
+    if ((err = gettok(p)) < 0) return err;
     // Then a value
-    if ((err = parse_value(p, to))) return err;
+    if ((err = parse_value(p, to)) < 0) return err;
     // Then a comma or RCB
     if (p->curtok.type == TKN_COMMA) {
-      if ((err = gettok(p))) return err;
+      if ((err = gettok(p)) < 0) return err;
       continue;
     } else if (p->curtok.type == TKN_RCB) {
       break;
@@ -299,7 +300,7 @@ static error_t parse_object(Parser* p, rich_Sink* to) {
       return VERR_MALFORMED;
     }
   }
-  if ((err = gettok(p))) return err;
+  if ((err = gettok(p)) < 0) return err;
   return call(to, end_map);
 }
 static error_t parse_value(Parser* p, rich_Sink* to) {
@@ -339,12 +340,16 @@ static error_t parse_value(Parser* p, rich_Sink* to) {
     default:
       err = VERR_MALFORMED;
   }
-  if (err) return err;
+  if (err < 0) return err;
   return p->error;
 }
 
 static error_t json_read_value(void* _self, rich_Sink* to) {
   Parser* p = _self;
+  if (!p->read_tok) {
+    gettok(p);
+    p->read_tok = true;
+  }
   return parse_value(p, to);
 }
 
@@ -526,11 +531,11 @@ static rich_Sink* json_new_sink(void* _self, Output* out) {
 static rich_Source* json_new_source(void* _self, Input* in) {
   Parser* p = malloc(sizeof(Parser));
   p->base._impl = &source_impl;
+  p->read_tok = false;
   p->in = in;
   p->error = 0;
   p->curtok.sval = NULL;
   vector_init(p->cbuf, sizeof(char), 32);
-  gettok(p);
   return &p->base;
 }
 

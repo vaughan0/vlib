@@ -42,8 +42,7 @@ static int buf_input_get(void* _self) {
       return VERR_EOF;
     }
   }
-  char c = self->buf->data[self->buf->read++];
-  return c;
+  return self->buf->data[self->buf->read++];
 }
 
 static void buf_input_unget(void* _self) {
@@ -51,10 +50,19 @@ static void buf_input_unget(void* _self) {
   self->buf->read--;
 }
 
+static bool buf_input_eof(void* _self) {
+  BufInput* self = _self;
+  if (buffer_avail_read(self->buf)) {
+    return false;
+  }
+  return io_eof(self->in);
+}
+
 static Input_Impl buf_input_impl = {
   .read = buf_input_read,
   .get = buf_input_get,
   .unget = buf_input_unget,
+  .eof = buf_input_eof,
   .close = buf_input_close,
 };
 

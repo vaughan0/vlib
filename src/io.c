@@ -35,6 +35,15 @@ void io_unget(Input* in) {
   assert(in->_impl->unget);
   call(in, unget);
 }
+bool io_eof(Input* in) {
+  if (in->_impl->eof) {
+    return call(in, eof);
+  }
+  assert(in->_impl->unget);
+  int c = io_get(in);
+  io_unget(in);
+  return c == -1;
+}
 
 int64_t io_write(Output* out, const char* src, size_t n) {
   if (out->_impl->write) {
@@ -137,10 +146,16 @@ static void string_input_unget(void* _self) {
   self->offset--;
 }
 
+static bool string_input_eof(void* _self) {
+  StringInput* self = _self;
+  return self->offset == self->size;
+}
+
 static Input_Impl string_input_impl = {
   .read = string_input_read,
   .get = string_input_get,
   .unget = string_input_unget,
+  .eof = string_input_eof,
   .close = free,
 };
 
@@ -153,7 +168,7 @@ data(Piece) {
 };
 
 data(StringOutput) {
-  Output   base;
+  Output      base;
   size_t      offset;
   Piece*      first;
   Piece*      last;
@@ -260,6 +275,20 @@ const char* string_output_data(Output* _self, size_t* store_size) {
   return p->data;
 }
 
+void string_output_reset(Output* _self) {
+  StringOutput* self = (StringOutput*)_self;
+
+  // Free all pieces except the last
+  Piece* tmp;
+  for (Piece* p = self->first; p != self->last; p = tmp) {
+    tmp = p->next;
+    free(p);
+  }
+
+  self->first = self->last;
+  self->offset = 0;
+}
+
 static Output_Impl string_output_impl = {
   .write = string_output_write,
   .put = string_output_put,
@@ -297,6 +326,11 @@ static int fd_input_get(void* _self) {
   return (c == EOF) ? VERR_EOF : c;
 }
 
+static bool fd_input_eof(void* _self) {
+  FDInput* self = _self;
+  return feof(self->file) != 0;
+}
+
 static void fd_input_close(void* _self) {
   FDInput* self = _self;
   fclose(self->file);
@@ -306,6 +340,7 @@ static void fd_input_close(void* _self) {
 static Input_Impl fd_input_impl = {
   .read = fd_input_read,
   .get = fd_input_get,
+  .eof = fd_input_eof,
   .close = fd_input_close,
 };
 
@@ -363,11 +398,13 @@ static int null_input_get(void* self) {
 }
 static void null_input_unget(void* self) {}
 static void null_input_close(void* self) {}
+static bool null_input_eof(void* self) {return true;}
 
 static Input_Impl null_input_impl = {
   .read = null_input_read,
   .get = null_input_get,
   .unget = null_input_unget,
+  .eof = null_input_eof,
   .close = null_input_close,
 };
 
@@ -408,11 +445,13 @@ static int zero_input_get(void* self) {
 }
 static void zero_input_unget(void* self) {}
 static void zero_input_close(void* self) {}
+static bool zero_input_eof(void* self) {return false;}
 
 static Input_Impl zero_input_impl = {
   .read = zero_input_read,
   .get = zero_input_get,
   .unget = zero_input_unget,
+  .eof = zero_input_eof,
   .close = zero_input_close,
 };
 
