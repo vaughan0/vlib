@@ -98,7 +98,6 @@ void verr_try(void (*action)(), void (*handle)(error_t error), void (*cleanup)()
   } else {
     if (handle) {
       // Wrap the handler in another try frame, so that the cleanup function is still called
-      TryFrame* frame = vector_push(try_stack);
       error_t reraise = setjmp(frame->env);
       if (reraise == 0) {
         handle(error);
@@ -106,7 +105,6 @@ void verr_try(void (*action)(), void (*handle)(error_t error), void (*cleanup)()
       } else {
         error = reraise;
       }
-      vector_pop(try_stack);
     }
   }
   vector_pop(try_stack);

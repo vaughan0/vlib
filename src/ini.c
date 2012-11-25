@@ -6,6 +6,7 @@
 #include <assert.h>
 
 #include <vlib/ini.h>
+#include <vlib/error.h>
 
 void ini_init(INI* self) {
   self->root = NULL;
@@ -37,7 +38,7 @@ static INI_Node* find_node(INI_Node** ptr, const char* name, int create) {
     node = *ptr;
   }
   if (!node && create) {
-    node = malloc(sizeof(INI_Node));
+    node = v_malloc(sizeof(INI_Node));
     node->next = NULL;
     node->name = strdup(name);
     node->data = NULL;
@@ -78,7 +79,7 @@ static char* trim(const char* src, size_t len) {
   src += start;
   while (len > 0 && isspace(src[len-1])) len--;
 
-  char* result = malloc(len+1);
+  char* result = v_malloc(len+1);
   memcpy(result, src, len);
   result[len] = 0;
   return result;
@@ -301,7 +302,7 @@ static GQI_Impl gqi_ini_impl = {
 };
 
 GQI* gqi_new_ini(INI* ini, bool free_on_close) {
-  GQI_INI* self = malloc(sizeof(GQI_INI));
+  GQI_INI* self = v_malloc(sizeof(GQI_INI));
   gqi_init(self, &gqi_ini_impl);
   self->ini = ini;
   self->owns = (free_on_close != 0);

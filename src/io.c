@@ -114,7 +114,7 @@ data(StringInput) {
 static Input_Impl string_input_impl;
 
 Input* string_input_new(const char* src, size_t sz) {
-  StringInput* self = malloc(sizeof(StringInput));
+  StringInput* self = v_malloc(sizeof(StringInput));
   self->base._impl = &string_input_impl;
   self->size = sz;
   self->offset = 0;
@@ -175,10 +175,14 @@ data(StringOutput) {
 static Output_Impl string_output_impl;
 
 Output* string_output_new(size_t initcap) {
-  StringOutput* self = malloc(sizeof(StringOutput));
+  StringOutput* self = v_malloc(sizeof(StringOutput));
   self->base._impl = &string_output_impl;
   self->offset = 0;
   self->first = malloc(sizeof(Piece) + initcap);
+  if (!self->first) {
+    free(self);
+    verr_raise(VERR_NOMEM);
+  }
   self->first->next = NULL;
   self->first->size = initcap;
   self->last = self->first;
@@ -187,7 +191,7 @@ Output* string_output_new(size_t initcap) {
 
 static void make_piece(StringOutput* self) {
   size_t sz = self->last->size * 2;
-  Piece* newpiece = malloc(sizeof(Piece) + sz);
+  Piece* newpiece = v_malloc(sizeof(Piece) + sz);
   newpiece->size = sz;
   newpiece->next = NULL;
   self->offset = 0;
@@ -241,7 +245,7 @@ const char* string_output_data(Output* _self, size_t* store_size) {
       total += p->size;
     }
 
-    Piece* bigone = malloc(sizeof(Piece) + total);
+    Piece* bigone = v_malloc(sizeof(Piece) + total);
     bigone->size = total;
     bigone->next = NULL;
     
@@ -302,7 +306,7 @@ static Input_Impl fd_input_impl;
 Input* fd_input_new(int fd) {
   FILE* file = fdopen(fd, "r");
   if (!file) return NULL;
-  FDInput* self = malloc(sizeof(FDInput));
+  FDInput* self = v_malloc(sizeof(FDInput));
   self->base._impl = &fd_input_impl;
   self->file = file;
   return &self->base;
@@ -346,9 +350,12 @@ data(FDOutput) {
 static Output_Impl fd_output_impl;
 
 Output* fd_output_new(int fd) {
+  FDOutput* self = v_malloc(sizeof(FDOutput));
   FILE* file = fdopen(fd, "w");
-  if (!file) return NULL;
-  FDOutput* self = malloc(sizeof(FDOutput));
+  if (!file) {
+    free(self);
+    return NULL;
+  }
   self->base._impl = &fd_output_impl;
   self->file = file;
   return &self->base;

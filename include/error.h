@@ -43,6 +43,7 @@ enum {
 enum {
   VERR_ARGERR     = VERR_MAKE(VERR_PGENERAL, 1),
   VERR_MALFORMED  = VERR_MAKE(VERR_PGENERAL, 2),
+  VERR_NOMEM      = VERR_MAKE(VERR_PGENERAL, 3),
 };
 
 // IO error codes
@@ -62,5 +63,17 @@ void    verr_raise(error_t error);
 #define CATCH(err) _func;}); _handle = ({ void _func(error_t err)
 #define FINALLY _func;}); _cleanup = ({ void _func()
 #define ENDTRY _func;}); verr_try(_action, _handle, _cleanup); }
+
+// Safe memory allocation
+static inline void* v_malloc(size_t sz) {
+  void* ptr = malloc(sz);
+  if (!ptr) verr_raise(VERR_NOMEM);
+  return ptr;
+}
+static inline void* v_realloc(void* ptr, size_t sz) {
+  ptr = realloc(ptr, sz);
+  if (!ptr && sz != 0) verr_raise(VERR_NOMEM);
+  return ptr;
+}
 
 #endif /* ERROR_H_0CCB7725EEA9D5 */

@@ -25,34 +25,34 @@ static int rich_key_equaler(const void* _a, const void* _b, size_t sz) {
 /* Data type constructors */
 
 rich_Value* rich_inmem_nil() {
-  rich_Value* val = malloc(sizeof(rich_Value));
+  rich_Value* val = v_malloc(sizeof(rich_Value));
   val->type = RICH_NIL;
   return val;
 };
 
 rich_Bool* rich_inmem_bool(bool b) {
-  rich_Bool* val = malloc(sizeof(rich_Bool));
+  rich_Bool* val = v_malloc(sizeof(rich_Bool));
   val->type = RICH_BOOL;
   val->value = b;
   return val;
 }
 
 rich_Int* rich_inmem_int(int i) {
-  rich_Int* val = malloc(sizeof(rich_Int));
+  rich_Int* val = v_malloc(sizeof(rich_Int));
   val->type = RICH_INT;
   val->value = i;
   return val;
 }
 
 rich_Float* rich_inmem_float(double d) {
-  rich_Float* val = malloc(sizeof(rich_Float));
+  rich_Float* val = v_malloc(sizeof(rich_Float));
   val->type = RICH_FLOAT;
   val->value = d;
   return val;
 }
 
 rich_String* rich_inmem_string(const char* str, size_t sz) {
-  rich_String* val = malloc(sizeof(rich_String) + sz);
+  rich_String* val = v_malloc(sizeof(rich_String) + sz);
   val->type = RICH_STRING;
   val->size = sz;
   memcpy(val->value, str, sz);
@@ -60,7 +60,7 @@ rich_String* rich_inmem_string(const char* str, size_t sz) {
 }
 
 rich_Array* rich_inmem_array() {
-  rich_Array* array = malloc(sizeof(rich_Array));
+  rich_Array* array = v_malloc(sizeof(rich_Array));
   array->type = RICH_ARRAY;
   vector_init(&array->value, sizeof(void*), 7);
   return array;
@@ -70,13 +70,13 @@ void rich_inmem_array_push(rich_Array* arr, void* value) {
 }
 
 rich_Map* rich_inmem_map() {
-  rich_Map* map = malloc(sizeof(rich_Map));
+  rich_Map* map = v_malloc(sizeof(rich_Map));
   map->type = RICH_MAP;
   hashtable_init(&map->value, rich_key_hasher, rich_key_equaler, sizeof(rich_Key*), sizeof(void*));
   return map;
 }
 void rich_inmem_map_add(rich_Map* map, const char* key, size_t keysz, void* value) {
-  rich_Key* k = malloc(sizeof(rich_Key) + keysz);
+  rich_Key* k = v_malloc(sizeof(rich_Key) + keysz);
   k->size = keysz;
   memcpy(k->data, key, keysz);
   *(void**)hashtable_insert(&map->value, &k) = value;
@@ -172,7 +172,7 @@ static void sink_key(void* _self, const char* str, size_t sz) {
   State* s = vector_back(&self->_states);
   assert(s->handler == handler_map);
   assert(self->_key == NULL);
-  self->_key = malloc(sizeof(rich_Key) + sz);
+  self->_key = v_malloc(sizeof(rich_Key) + sz);
   self->_key->size = sz;
   memcpy(self->_key->data, str, sz);
 }
@@ -274,7 +274,7 @@ static rich_Source_Impl source_impl = {
 /* Main functions */
 
 rich_InMem* rich_inmem_new() {
-  rich_InMem* self = malloc(sizeof(rich_InMem));
+  rich_InMem* self = v_malloc(sizeof(rich_InMem));
   self->sink._impl = &sink_impl;
   self->source._impl = &source_impl;
 

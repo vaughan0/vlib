@@ -10,7 +10,7 @@
 static Input_Impl buf_input_impl;
 
 void* buf_input_new(Input* wrap, size_t buffer) {
-  BufInput* self = malloc(sizeof(BufInput));
+  BufInput* self = v_malloc(sizeof(BufInput));
   self->base._impl = &buf_input_impl;
   self->in = wrap;
   self->buf = buffer_new(buffer);
@@ -71,7 +71,7 @@ static Input_Impl buf_input_impl = {
 static Output_Impl buf_output_impl;
 
 void* buf_output_new(Output* wrap, size_t buffer) {
-  BufOutput* self = malloc(sizeof(BufOutput));
+  BufOutput* self = v_malloc(sizeof(BufOutput));
   self->base._impl = &buf_output_impl;
   self->out = wrap;
   self->buf = buffer_new(buffer);

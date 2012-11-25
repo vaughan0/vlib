@@ -89,7 +89,7 @@ static void parse_string(Parser* p) {
     ch = io_get(p->in);
   }
   p->curtok.slen = p->cbuf->size;
-  p->curtok.sval = malloc(p->curtok.slen);
+  p->curtok.sval = v_malloc(p->curtok.slen);
   memcpy(p->curtok.sval, p->cbuf->_data, p->curtok.slen);
 }
 static void parse_number(Parser* p, int ch) {
@@ -504,7 +504,7 @@ static rich_Sink_Impl sink_impl = {
 /* Codec */
 
 static rich_Sink* json_new_sink(void* _self, Output* out) {
-  Dumper* d = malloc(sizeof(Dumper));
+  Dumper* d = v_malloc(sizeof(Dumper));
   d->base._impl = &sink_impl;
   d->out = out;
   vector_init(&d->states, sizeof(State), 7);
@@ -515,7 +515,7 @@ static rich_Sink* json_new_sink(void* _self, Output* out) {
 }
 
 static rich_Source* json_new_source(void* _self, Input* in) {
-  Parser* p = malloc(sizeof(Parser));
+  Parser* p = v_malloc(sizeof(Parser));
   p->base._impl = &source_impl;
   p->read_tok = false;
   p->in = in;

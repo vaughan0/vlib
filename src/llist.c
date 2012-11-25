@@ -3,6 +3,7 @@
 #include <assert.h>
 
 #include <vlib/llist.h>
+#include <vlib/error.h>
 
 data(Node) {
   Node  *prev, *next;
@@ -28,8 +29,8 @@ void* llist_front(LList* l) {
 }
 
 void* llist_push_front(LList* l) {
+  Node* n = v_malloc(sizeof(Node) + l->elemsz);
   l->size++;
-  Node* n = malloc(sizeof(Node) + l->elemsz);
   n->prev = NULL;
   n->next = l->_first;
   if (n->next) n->next->prev = n;
@@ -54,7 +55,7 @@ void* llist_back(LList* l) {
 
 void* llist_push_back(LList* l) {
   l->size++;
-  Node* n = malloc(sizeof(Node) + l->elemsz);
+  Node* n = v_malloc(sizeof(Node) + l->elemsz);
   n->next = NULL;
   n->prev = l->_last;
   if (n->prev) n->prev->next = n;
