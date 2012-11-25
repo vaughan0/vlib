@@ -65,13 +65,14 @@ rich_Array* rich_inmem_array() {
   vector_init(&array->value, sizeof(void*), 7);
   return array;
 }
+void rich_inmem_array_push(rich_Array* arr, void* value) {
+  *(void**)vector_push(&arr->value) = value;
+}
 
 rich_Map* rich_inmem_map() {
   rich_Map* map = malloc(sizeof(rich_Map));
   map->type = RICH_MAP;
-  hashtable_init(&map->value,
-      rich_key_hasher, rich_key_equaler, sizeof(rich_Key*), sizeof(void*),
-      7, 0.75);
+  hashtable_init(&map->value, rich_key_hasher, rich_key_equaler, sizeof(rich_Key*), sizeof(void*));
   return map;
 }
 void rich_inmem_map_add(rich_Map* map, const char* key, size_t keysz, void* value) {
@@ -119,62 +120,62 @@ static void push_state(rich_InMem* self, void* handler, void* data) {
 
 /* Sink implementation */
 
-static bool sink_nil(void* _self) {
+static error_t sink_nil(void* _self) {
   rich_InMem* self = _self;
   rich_Value* val = rich_inmem_nil();
   process(self, val);
-  return true;
+  return 0;
 }
 
-static bool sink_bool(void* _self, bool b) {
+static error_t sink_bool(void* _self, bool b) {
   rich_InMem* self = _self;
   rich_Bool* val = rich_inmem_bool(b);
   process(self, val);
-  return true;
+  return 0;
 }
 
-static bool sink_int(void* _self, int i) {
+static error_t sink_int(void* _self, int i) {
   rich_InMem* self = _self;
   rich_Int* val = rich_inmem_int(i);
   process(self, val);
-  return true;
+  return 0;
 }
 
-static bool sink_float(void* _self, double d) {
+static error_t sink_float(void* _self, double d) {
   rich_InMem* self = _self;
   rich_Float* val = rich_inmem_float(d);
   process(self, val);
-  return true;
+  return 0;
 }
 
-static bool sink_string(void* _self, const char* str, size_t sz) {
+static error_t sink_string(void* _self, const char* str, size_t sz) {
   rich_InMem* self = _self;
   rich_String* val = rich_inmem_string(str, sz);
   process(self, val);
-  return true;
+  return 0;
 }
 
-static bool begin_array(void* _self) {
+static error_t begin_array(void* _self) {
   rich_InMem* self = _self;
   rich_Array* array = rich_inmem_array();
   process(self, array);
   push_state(self, handler_array, array);
-  return true;
+  return 0;
 }
-static bool end_array(void* _self) {
+static error_t end_array(void* _self) {
   rich_InMem* self = _self;
   vector_pop(&self->_states);
-  return true;
+  return 0;
 }
 
-static bool begin_map(void* _self) {
+static error_t begin_map(void* _self) {
   rich_InMem* self = _self;
   rich_Map* map = rich_inmem_map();
   process(self, map);
   push_state(self, handler_map, map);
-  return true;
+  return 0;
 }
-static bool sink_key(void* _self, const char* str, size_t sz) {
+static error_t sink_key(void* _self, const char* str, size_t sz) {
   rich_InMem* self = _self;
   State* s = vector_back(&self->_states);
   assert(s->handler == handler_map);
@@ -182,12 +183,12 @@ static bool sink_key(void* _self, const char* str, size_t sz) {
   self->_key = malloc(sizeof(rich_Key) + sz);
   self->_key->size = sz;
   memcpy(self->_key->data, str, sz);
-  return true;
+  return 0;
 }
-static bool end_map(void* _self) {
+static error_t end_map(void* _self) {
   rich_InMem* self = _self;
   vector_pop(&self->_states);
-  return true;
+  return 0;
 }
 
 static void sink_close(void* _self) {
@@ -210,67 +211,68 @@ static rich_Sink_Impl sink_impl = {
 
 /* Source implementation */
 
-static bool dump_value(rich_Sink* to, void* val) {
+static error_t dump_value(rich_Sink* to, void* val) {
+  error_t err;
   rich_String* sval;
   rich_Array* array;
   rich_Map* map;
   switch (((rich_Value*)val)->type) {
 
     case RICH_NIL:
-      if (!call(to, sink_nil)) return false;
+      if ((err = call(to, sink_nil)) < 0) return err;
       break;
     case RICH_BOOL:
-      if (!call(to, sink_bool, ((rich_Bool*)val)->value)) return false;
+      if ((err = call(to, sink_bool, ((rich_Bool*)val)->value)) < 0) return err;
       break;
     case RICH_INT:
-      if (!call(to, sink_int, ((rich_Int*)val)->value)) return false;
+      if ((err = call(to, sink_int, ((rich_Int*)val)->value)) < 0) return err;
       break;
     case RICH_FLOAT:
-      if (!call(to, sink_float, ((rich_Float*)val)->value)) return false;
+      if ((err = call(to, sink_float, ((rich_Float*)val)->value)) < 0) return err;
       break;
     case RICH_STRING:
       sval = val;
-      if (!call(to, sink_string, sval->value, sval->size)) return false;
+      if ((err = call(to, sink_string, sval->value, sval->size)) < 0) return err;
       break;
 
     case RICH_ARRAY:
       array = val;
-      if (!call(to, begin_array)) return false;
+      if ((err = call(to, begin_array)) < 0) return err;
       for (unsigned i = 0; i < array->value.size; i++) {
-        if (!dump_value(to, *(void**)vector_get(&array->value, i))) return false;
+        if ((err = dump_value(to, *(void**)vector_get(&array->value, i))) < 0) return err;
       }
-      if (!call(to, end_array)) return false;
+      if ((err = call(to, end_array)) < 0) return err;
       break;
 
     case RICH_MAP:
       map = val;
-      if (!call(to, begin_map)) return false;
+      if ((err = call(to, begin_map)) < 0) return err;
       HT_Iter iter;
       hashtable_iter(&map->value, &iter);
       void *_key, *_value;
       while ( (_key = hashtable_next(&iter, &_value)) != NULL ) {
         rich_Key* key = *(rich_Key**)_key;
         void* value = *(void**)_value;
-        if (!call(to, sink_key, key->data, key->size)) return false;
-        if (!dump_value(to, value)) return false;
+        if ((err = call(to, sink_key, key->data, key->size)) < 0) return err;
+        if ((err = dump_value(to, value)) < 0) return err;
       }
-      if (!call(to, end_map)) return false;
+      if ((err = call(to, end_map)) < 0) return err;
       break;
 
   }
-  return true;
+  return 0;
 }
 
-static bool read_value(void* _self, rich_Sink* to) {
+static error_t read_value(void* _self, rich_Sink* to) {
   rich_InMem* self = container_of(_self, rich_InMem, source);
   if (self->_values.size > 0) {
     void* val = *(void**)llist_front(&self->_values);
     llist_pop_front(&self->_values);
-    bool r = dump_value(to, val);
+    error_t r = dump_value(to, val);
     rich_inmem_free(val);
     return r;
   }
-  return false;
+  return VERR_EOF;
 }
 
 static void source_close(void* _self) {
@@ -329,7 +331,7 @@ void rich_inmem_free(void* value) {
     case RICH_ARRAY:
       array = value;
       for (unsigned i = 0; i < array->value.size; i++) {
-        rich_inmem_free(vector_get(&array->value, i));
+        rich_inmem_free(*(void**)vector_get(&array->value, i));
       }
       vector_close(&array->value);
       break;

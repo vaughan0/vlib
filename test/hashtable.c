@@ -6,7 +6,7 @@
 #include <vlib/hashtable.h>
 
 static void hinit(Hashtable* h) {
-  hashtable_init(h, hasher_fnv64str, equaler_str, sizeof(char*), sizeof(int), 1, 0.5);
+  hashtable_init7(h, hasher_fnv64str, equaler_str, sizeof(char*), sizeof(int), 1, 0.5);
 }
 static void hclose(Hashtable* h) {
   HT_Iter iter;

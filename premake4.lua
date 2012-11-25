@@ -8,7 +8,7 @@ solution 'vlib'
   buildoptions { '-std=gnu99' }
   includedirs '.'
 
-  links { 'zmq' }
+  links { 'm' }
 
   configuration 'debug'
     defines { 'DEBUG' }

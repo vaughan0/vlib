@@ -43,6 +43,7 @@ data(rich_Array) {
   Vector      value;
 };
 rich_Array*   rich_inmem_array();
+void          rich_inmem_array_push(rich_Array* array, void* value);
 
 data(rich_Map) {
   rich_Type   type;
@@ -57,6 +58,13 @@ data(rich_Key) {
 };
 
 void  rich_inmem_free(void* value);
+
+data(rich_InMem_Sink) {
+  rich_Sink   base;
+  LList       _values;
+  Vector      _states;
+  rich_Key*   _key;
+};
 
 /** Sink/Source
  *

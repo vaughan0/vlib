@@ -5,6 +5,7 @@
 #include <stdbool.h>
 
 #include <vlib/std.h>
+#include <vlib/error.h>
 
 interface(Input) {
   int64_t (*read)(void* self, char* dst, size_t n);
@@ -15,8 +16,8 @@ interface(Input) {
 
 interface(Output) {
   int64_t (*write)(void* self, const char* src, size_t n);
-  bool    (*put)(void* self, char ch);
-  bool    (*flush)(void* self);
+  error_t (*put)(void* self, char ch);
+  error_t (*flush)(void* self);
   void    (*close)(void* self);
 };
 
@@ -26,8 +27,8 @@ void        io_unget(Input* input);
 
 int64_t     io_write(Output* output, const char* src, size_t n);
 int64_t     io_write_full(Output* output, const char* src, size_t n);
-bool        io_put(Output* output, char ch);
-bool        io_flush(Output* output);
+error_t     io_put(Output* output, char ch);
+error_t     io_flush(Output* output);
 
 /* Utility functions */
 

@@ -1,0 +1,54 @@
+#ifndef ERROR_H_0CCB7725EEA9D5
+#define ERROR_H_0CCB7725EEA9D5
+
+#include <stdint.h>
+#include <stdbool.h>
+
+#include <vlib/std.h>
+
+/* Error codes:
+ * b00000cc cccccccc pppppppp pppppppp
+ * b:   Bad bit - 0 for success, 1 for error
+ * c:   Error code
+ * p:   Provider Id
+ */
+
+#define VERR_CODE(err) (((err) & 0x03FF0000) >> 16)
+#define VERR_PROVIDER(err) ((err) & 0x0000FFFF)
+#define VERR_MAKE(provider, code) ((1 << 31) | (((code) & 0x3FF) << 16) | ((provider) & 0xFFFF))
+
+typedef int32_t error_t;
+
+const char* verr_msg(error_t eno);
+
+/* Pluggable providers */
+
+data(ErrorProvider) {
+  const char* name;
+  const char* (*get_msg)(error_t code);
+};
+
+void verr_register(int provider, ErrorProvider* impl);
+
+void verr_init() __attribute__((constructor));
+
+/* Standard providers */
+
+enum {
+  VERR_PGENERAL,
+  VERR_PIO,
+};
+
+// General error codes
+enum {
+  VERR_ARGERR     = VERR_MAKE(VERR_PGENERAL, 1),
+  VERR_MALFORMED  = VERR_MAKE(VERR_PGENERAL, 2),
+};
+
+// IO error codes
+enum {
+  VERR_IO   = VERR_MAKE(VERR_PIO, 1),  // general IO error
+  VERR_EOF  = VERR_MAKE(VERR_PIO, 2),
+};
+
+#endif /* ERROR_H_0CCB7725EEA9D5 */

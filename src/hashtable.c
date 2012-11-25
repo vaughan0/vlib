@@ -6,7 +6,7 @@
 
 #include <vlib/hashtable.h>
 
-void hashtable_init(Hashtable* ht, Hasher hasher, Equaler equaler, size_t keysz, size_t elemsz, size_t cap, double loadfactor) {
+void hashtable_init7(Hashtable* ht, Hasher hasher, Equaler equaler, size_t keysz, size_t elemsz, size_t cap, double loadfactor) {
   assert(keysz > 0);
   assert(elemsz > 0);
   assert(cap > 0);

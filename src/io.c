@@ -18,7 +18,7 @@ int64_t io_read(Input* in, char* dst, size_t n) {
   unsigned r = 0;
   while (r < n) {
     int ch = call(in, get);
-    if (ch == -1) break;
+    if (ch < 0) break;
     dst[r++] = ch;
   }
   return r;
@@ -29,7 +29,7 @@ int io_get(Input* in) {
   }
   assert(in->_impl->read);
   char ch;
-  return call(in, read, &ch, 1) ? ch : -1;
+  return call(in, read, &ch, 1) ? ch : VERR_EOF;
 }
 void io_unget(Input* in) {
   assert(in->_impl->unget);
@@ -54,16 +54,16 @@ int64_t io_write_full(Output* out, const char* src, size_t n) {
     if (r <= 0) break;
     written += r;
   }
-  return written;
+  return written == n ? written : VERR_IO;
 }
-bool io_put(Output* out, char ch) {
+error_t io_put(Output* out, char ch) {
   if (out->_impl->put) {
     return call(out, put, ch);
   }
   assert(out->_impl->write);
-  return io_write(out, &ch, 1) == 1;
+  return (io_write(out, &ch, 1) == 1) ? 1 : VERR_IO;
 }
-bool io_flush(Output* output) {
+error_t io_flush(Output* output) {
   assert(output->_impl->flush);
   return call(output, flush);
 }
@@ -128,7 +128,7 @@ static int string_input_get(void* _self) {
   if (self->offset < self->size) {
     return self->src[self->offset++];
   }
-  return -1;
+  return VERR_EOF;
 }
 
 static void string_input_unget(void* _self) {
@@ -197,17 +197,17 @@ static int64_t string_output_write(void* _self, const char* src, size_t n) {
   }
 }
 
-static bool string_output_put(void* _self, char ch) {
+static error_t string_output_put(void* _self, char ch) {
   StringOutput* self = _self;
   if (self->offset == self->last->size) {
     make_piece(self);
   }
   self->last->data[self->offset++] = ch;
-  return true;
+  return 1;
 }
 
-static bool string_output_flush(void* self) {
-  return true;
+static error_t string_output_flush(void* self) {
+  return 1;
 }
 
 static void string_output_close(void* _self) {
@@ -287,12 +287,14 @@ Input* fd_input_new(int fd) {
 
 static int64_t fd_input_read(void* _self, char* dst, size_t n) {
   FDInput* self = _self;
+  if (feof(self->file)) return 0;
   return fread(dst, 1, n, self->file);
 }
 
 static int fd_input_get(void* _self) {
   FDInput* self = _self;
-  return fgetc(self->file);
+  int c = fgetc(self->file);
+  return (c == EOF) ? VERR_EOF : c;
 }
 
 static void fd_input_close(void* _self) {
@@ -328,14 +330,14 @@ static int64_t fd_output_write(void* _self, const char* src, size_t n) {
   return fwrite(src, 1, n, self->file);
 }
 
-static bool fd_output_put(void* _self, char ch) {
+static error_t fd_output_put(void* _self, char ch) {
   FDOutput* self = _self;
-  return fputc((int)ch, self->file) != EOF;
+  return (fputc((int)ch, self->file) == EOF) ? VERR_EOF : 0;
 }
 
-static bool fd_output_flush(void* _self) {
+static error_t fd_output_flush(void* _self) {
   FDOutput* self = _self;
-  return fflush(self->file) == 0;
+  return fflush(self->file) ? VERR_IO : 0;
 }
 
 static void fd_output_close(void* _self) {
@@ -357,7 +359,7 @@ static int64_t null_input_read(void* self, char* dst, size_t n) {
   return 0;
 }
 static int null_input_get(void* self) {
-  return -1;
+  return VERR_EOF;
 }
 static void null_input_unget(void* self) {}
 static void null_input_close(void* self) {}
@@ -376,11 +378,11 @@ Input null_input = {
 static int64_t null_output_write(void* self, const char* src, size_t n) {
   return n;
 }
-static bool null_output_put(void* self, char ch) {
-  return true;
+static error_t null_output_put(void* self, char ch) {
+  return 0;
 }
-static bool null_output_flush(void* self) {
-  return true;
+static error_t null_output_flush(void* self) {
+  return 0;
 }
 static void null_output_close(void* self) {}
 

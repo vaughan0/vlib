@@ -30,7 +30,11 @@ data(Hashtable) {
   size_t      _maxsize;     // precalculated maximum size before a rehash is needed
 };
 
-void hashtable_init(Hashtable* ht, Hasher h, Equaler e, size_t keysz, size_t elemsz, size_t capacity, double loadfactor);
+void hashtable_init7(Hashtable* ht, Hasher h, Equaler e, size_t keysz, size_t elemsz, size_t capacity, double loadfactor);
+static inline void hashtable_init(Hashtable* ht, Hasher h, Equaler e, size_t keysz, size_t elemsz) {
+  hashtable_init7(ht, h, e, keysz, elemsz, 7, 0.75);
+}
+
 void hashtable_close(Hashtable* ht);
 
 // Returns the pointer to the value identified by key, or NULL if no such value was found.

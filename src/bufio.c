@@ -1,6 +1,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 #include <vlib/bufio.h>
 
@@ -38,10 +39,11 @@ static int buf_input_get(void* _self) {
   if (!buffer_avail_read(self->buf)) {
     buffer_fill(self->buf, self->in);
     if (!buffer_avail_read(self->buf)) {
-      return -1;
+      return VERR_EOF;
     }
   }
-  return self->buf->data[self->buf->read++];
+  char c = self->buf->data[self->buf->read++];
+  return c;
 }
 
 static void buf_input_unget(void* _self) {
@@ -71,24 +73,27 @@ void* buf_output_new(Output* wrap, size_t buffer) {
 
 static int64_t buf_output_write(void* _self, const char* src, size_t n) {
   BufOutput* self = _self;
+  error_t err;
   if (buffer_avail_write(self->buf) == 0) {
-    if (!buffer_flush(self->buf, self->out)) return -1;
+    if ((err = buffer_flush(self->buf, self->out))) return err;
   }
   return buffer_write(self->buf, src, n);
 }
 
-static bool buf_output_put(void* _self, char ch) {
+static error_t buf_output_put(void* _self, char ch) {
   BufOutput* self = _self;
+  error_t err;
   if (buffer_avail_write(self->buf) == 0) {
-    if (!buffer_flush(self->buf, self->out)) return -1;
+    if ((err = buffer_flush(self->buf, self->out))) return err;
   }
   self->buf->data[self->buf->write++] = ch;
-  return true;
+  return 1;
 }
 
-static bool buf_output_flush(void* _self) {
+static error_t buf_output_flush(void* _self) {
   BufOutput* self = _self;
-  if (!buffer_flush(self->buf, self->out)) return false;
+  error_t err;
+  if ((err = buffer_flush(self->buf, self->out))) return err;
   return call(self->out, flush);
 }
 
