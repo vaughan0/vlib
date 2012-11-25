@@ -51,4 +51,16 @@ enum {
   VERR_EOF  = VERR_MAKE(VERR_PIO, 2),
 };
 
+/* Exception handling */
+
+void    verr_try(void (*action)(), void (*handle)(error_t error), void (*cleanup)());
+void    verr_raise(error_t error);
+
+// (There be dragons ahead)
+#define TRY { void (*_action)(); void (*_handle)(error_t) = NULL; void (*_cleanup)() = NULL; \
+  _action = ({ void _func()
+#define CATCH(err) _func;}); _handle = ({ void _func(error_t err)
+#define FINALLY _func;}); _cleanup = ({ void _func()
+#define ENDTRY _func;}); verr_try(_action, _handle, _cleanup); }
+
 #endif /* ERROR_H_0CCB7725EEA9D5 */

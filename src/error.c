@@ -3,17 +3,35 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <assert.h>
+#include <setjmp.h>
 
 #include <vlib/error.h>
 #include <vlib/hashtable.h>
+#include <vlib/vector.h>
 
 static Hashtable providers[1];
 static ErrorProvider general_provider, io_provider;
+
+static Vector try_stack[1];
+
+data(TryFrame) {
+  jmp_buf env;
+};
 
 void verr_init() {
   hashtable_init(providers, hasher_fnv64, memcmp, sizeof(int), sizeof(ErrorProvider*));
   verr_register(VERR_PGENERAL, &general_provider);
   verr_register(VERR_PIO, &io_provider);
+
+  vector_init(try_stack, sizeof(TryFrame), 16);
+  TryFrame* root = vector_push(try_stack);
+  error_t err;
+  if ((err = setjmp(root->env))) {
+    fprintf(stderr, "Unhandled exception: %s\n", verr_msg(err));
+    abort();
+  }
+
 }
 
 void verr_register(int provider, ErrorProvider* impl) {
@@ -32,7 +50,7 @@ const char* verr_msg(error_t err) {
   ErrorProvider* ep = *(ErrorProvider**)ptr;
   const char* msg = ep->get_msg(err);
   if (!msg) goto NoDetails;
-  snprintf(buf, sizeof(buf), "[%s] %s", ep->name, msg);
+  snprintf(buf, sizeof(buf), "[%s:%x] %s", ep->name, err, msg);
   return buf;
 
 NoDetails:
@@ -69,3 +87,35 @@ static ErrorProvider io_provider = {
   .name = "io",
   .get_msg = io_get_msg,
 };
+
+/* Exceptions */
+
+void verr_try(void (*action)(), void (*handle)(error_t error), void (*cleanup)()) {
+  TryFrame* frame = vector_push(try_stack);
+  error_t error = setjmp(frame->env);
+  if (error == 0) {
+    action();
+  } else {
+    if (handle) {
+      // Wrap the handler in another try frame, so that the cleanup function is still called
+      TryFrame* frame = vector_push(try_stack);
+      error_t reraise = setjmp(frame->env);
+      if (reraise == 0) {
+        handle(error);
+        error = 0;
+      } else {
+        error = reraise;
+      }
+      vector_pop(try_stack);
+    }
+  }
+  vector_pop(try_stack);
+  if (cleanup) cleanup();
+  if (error) verr_raise(error);
+}
+
+void verr_raise(error_t error) {
+  assert(error != 0);
+  TryFrame* frame = vector_back(try_stack);
+  longjmp(frame->env, error);
+}
