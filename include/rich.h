@@ -11,30 +11,27 @@
 #include <vlib/vector.h>
 
 typedef enum {
-  RICH_NIL,
-  RICH_BOOL,
-  RICH_INT,
-  RICH_FLOAT,
-  RICH_STRING,
-  RICH_ARRAY,
-  RICH_MAP,
-} rich_Type;
+  // name         data type
+  RICH_NIL,       // no data
+  RICH_BOOL,      // C bool type
+  RICH_INT,       // C int type
+  RICH_FLOAT,     // C double type
+  RICH_STRING,    // rich_String
+  RICH_ARRAY,     // no data
+  RICH_ENDARRAY,  // no data
+  RICH_MAP,       // no data
+  RICH_KEY,       // rich_String
+  RICH_ENDMAP,    // no data
+} rich_Atom;
 
-// Collection of callbacks for handling rich data is it is processed.
+data(rich_String) {
+  size_t      sz;
+  const char* data;
+};
+
+// Handles incoming rich data
 interface(rich_Sink) {
-  void (*sink_nil)(void* self);
-  void (*sink_bool)(void* self, bool val);
-  void (*sink_int)(void* self, int val);
-  void (*sink_float)(void* self, double val);
-  void (*sink_string)(void* self, const char* str, size_t sz);
-
-  void (*begin_array)(void* self);
-  void (*end_array)(void* self);
-
-  void (*begin_map)(void* self);
-  void (*sink_key)(void* self, const char* str, size_t sz);
-  void (*end_map)(void* self);
-
+  void (*sink)(void* self, rich_Atom atom, void* atom_data);
   void (*close)(void* self);
 };
 
@@ -68,20 +65,7 @@ data(rich_Reactor) {
 };
 
 interface(rich_Reactor_Sink) {
-  void (*sink_nil)(void* self, rich_Reactor* r);
-  void (*sink_bool)(void* self, rich_Reactor* r, bool val);
-  void (*sink_int)(void* self, rich_Reactor* r, int val);
-  void (*sink_float)(void* self, rich_Reactor* r, double val);
-  void (*sink_string)(void* self, rich_Reactor* r, const char* str, size_t sz);
-
-  void (*begin_array)(void* self, rich_Reactor* r);
-  void (*end_array)(void* self, rich_Reactor* r);
-
-  void (*begin_map)(void* self, rich_Reactor* r);
-  void (*sink_key)(void* self, rich_Reactor* r, const char* str, size_t sz);
-  void (*end_map)(void* self, rich_Reactor* r);
-
-  void (*close)(void* self);
+  void  (*sink)(void* self, rich_Reactor* r, rich_Atom atom, void* atom_data);
 };
 
 void  rich_reactor_init(rich_Reactor* self, size_t stack_data_sz);
