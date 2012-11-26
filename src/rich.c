@@ -83,12 +83,19 @@ void* rich_reactor_push(rich_Reactor* self, rich_Reactor_Sink* sink) {
   Frame* f = vector_push(self->stack);
   f->sink = sink;
   self->data = f->data;
+  if (f->sink->_impl->init_frame) {
+    call(f->sink, init_frame, f->data);
+  }
   return f->data;
 }
 void rich_reactor_pop(rich_Reactor* self) {
+  Frame* f = vector_back(self->stack);
+  if (f->sink->_impl->cleanup_frame) {
+    call(f->sink, cleanup_frame, f->data);
+  }
   vector_pop(self->stack);
   if (self->stack->size){
-    Frame* f = vector_back(self->stack);
+    f = vector_back(self->stack);
     self->data = f->data;
   } else {
     self->data = NULL;

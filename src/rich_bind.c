@@ -11,7 +11,7 @@ void rich_dump(rich_Schema* schema, void* from, rich_Sink* to) {
 }
 
 void rich_bindop_init(rich_BindOp* op) {
-  rich_reactor_init(op->reactor, sizeof(void*));
+  rich_reactor_init(op->reactor, sizeof(rich_Frame));
 }
 void rich_bindop_close(rich_BindOp* op) {
   rich_reactor_close(op->reactor);
@@ -27,7 +27,7 @@ rich_Sink* rich_bind(rich_BindOp* op, rich_Schema* schema, void* to) {
 
 static void bool_sink(void* _self, rich_Reactor* r, rich_Atom atom, void* data) {
   if (atom != RICH_BOOL) RAISE(MALFORMED);
-  bool* to = *(void**)r->data;
+  bool* to = ((rich_Frame*)r->data)->to;
   *to = *(bool*)data;
   rich_reactor_pop(r);
 }
@@ -50,7 +50,7 @@ rich_Schema rich_schema_bool = {
 
 static void int_sink(void* _self, rich_Reactor* r, rich_Atom atom, void* data) {
   if (atom != RICH_INT) RAISE(MALFORMED);
-  int* to = *(void**)r->data;
+  int* to = ((rich_Frame*)r->data)->to;
   *to = *(int*)data;
   rich_reactor_pop(r);
 }
@@ -73,7 +73,7 @@ rich_Schema rich_schema_int = {
 
 static void float_sink(void* _self, rich_Reactor* r, rich_Atom atom, void* data) {
   if (atom != RICH_FLOAT) RAISE(MALFORMED);
-  double* to = *(void**)r->data;
+  double* to = ((rich_Frame*)r->data)->to;
   *to = *(double*)data;
   rich_reactor_pop(r);
 }
@@ -96,7 +96,7 @@ rich_Schema rich_schema_float = {
 
 static void string_sink(void* _self, rich_Reactor* r, rich_Atom atom, void* data) {
   if (atom != RICH_STRING) RAISE(MALFORMED);
-  rich_String* to = *(void**)r->data;
+  rich_String* to = ((rich_Frame*)r->data)->to;
   rich_String* from = data;
   to->sz = from->sz;
   to->data = v_malloc(from->sz);
@@ -122,7 +122,7 @@ rich_Schema rich_schema_string = {
 
 static void cstring_sink(void* _self, rich_Reactor* r, rich_Atom atom, void* data) {
   if (atom != RICH_STRING) RAISE(MALFORMED);
-  char** to = *(void**)r->data;
+  char** to = ((rich_Frame*)r->data)->to;
   rich_String* from = data;
   *to = v_malloc(from->sz + 1);
   memcpy(*to, from->data, from->sz);
@@ -165,11 +165,18 @@ rich_Schema* rich_schema_vector(rich_Schema* of) {
   return &self->base;
 };
 
+static void vector_init_frame(void* _self, void* data) {
+  rich_Frame* f = data;
+  f->udata = 0;
+}
 static void vector_sink(void* _self, rich_Reactor* r, rich_Atom atom, void* data) {
   VectorSchema* self = _self;
-  Vector* v = *(void**)r->data;
-  if (atom == RICH_ARRAY) {
+  rich_Frame* frame = r->data;
+  Vector* v = frame->to;
+  if (frame->udata == 0) {
+    if (atom != RICH_ARRAY) RAISE(MALFORMED);
     vector_init(v, call(self->of, data_size), 7);
+    frame->udata = (void*)1;
   } else if (atom == RICH_ENDARRAY) {
     rich_reactor_pop(r);
   } else {
@@ -197,6 +204,7 @@ static void _vector_close(void* _self) {
 }
 static rich_Schema_Impl vector_impl = {
   .sink_impl.sink = vector_sink,
+  .sink_impl.init_frame = vector_init_frame,
   .dump_value = vector_dump,
   .data_size = vector_size,
   .close = _vector_close,
@@ -251,11 +259,18 @@ void rich_struct_cregister(void* _self, const char* name, size_t offset, rich_Sc
   rich_struct_register(_self, &str, offset, schema);
 }
 
+static void struct_init_frame(void* _self, void* data) {
+  rich_Frame* frame = data;
+  frame->udata = 0;
+}
 static void struct_sink(void* _self, rich_Reactor* r, rich_Atom atom, void* data) {
   StructSchema* self = _self;
-  void* to = *(void**)r->data;
-  if (atom == RICH_MAP) {
+  rich_Frame* frame = r->data;
+  void* to = frame->to;
+  if (frame->udata == 0) {
+    if (atom != RICH_MAP) RAISE(MALFORMED);
     memset(to, 0, self->data_size);
+    frame->udata = (void*)1;
   } else if (atom == RICH_ENDMAP) {
     rich_reactor_pop(r);
   } else if (atom == RICH_KEY) {
@@ -306,8 +321,12 @@ static void struct_close(void* _self) {
 
 static rich_Schema_Impl struct_impl = {
   .sink_impl.sink = struct_sink,
+  .sink_impl.init_frame = struct_init_frame,
   .dump_value = struct_dump,
   .data_size = struct_size,
   .close = struct_close,
 };
 
+/* pointer */
+
+static rich_Schema_Impl pointer_impl;

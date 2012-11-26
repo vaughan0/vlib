@@ -67,6 +67,10 @@ data(rich_Reactor) {
 };
 
 interface(rich_Reactor_Sink) {
+  // Called just after the sink is pushed onto the stack, but before any data is passed to it
+  void  (*init_frame)(void* self, void* data);
+  // Called just after the sink is popped from the stack
+  void  (*cleanup_frame)(void* self, void* data);
   void  (*sink)(void* self, rich_Reactor* r, rich_Atom atom, void* atom_data);
 };
 
