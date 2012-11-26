@@ -17,6 +17,10 @@ data(Vector) {
 void vector_init(Vector* v, size_t elemsz, size_t capacity);
 void vector_close(Vector* v);
 
+static inline void vector_clear(Vector* v) {
+  v->size = 0;
+}
+
 /* Returns a pointer to the element at index. Index must be within [0, v->size) */
 static inline void* vector_get(Vector* v, unsigned index) {
   assert(index < v->size);

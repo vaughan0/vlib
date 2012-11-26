@@ -1,0 +1,61 @@
+#ifndef RICH_BIND_H_D656D10B3990D3
+#define RICH_BIND_H_D656D10B3990D3
+
+#include <vlib/rich.h>
+
+interface(rich_Schema) {
+  rich_Reactor_Sink_Impl sink_impl;
+  void    (*dump_value)(void* self, void* from, rich_Sink* to);
+  size_t  (*data_size)(void* self);
+  void    (*close)(void* self);
+};
+
+static inline void rich_schema_close(rich_Schema* s) {
+  if (s->_impl->close) call(s, close);
+}
+
+// Dumps data of a certain schema, from a given address, to a sink
+void rich_dump(rich_Schema* schema, void* from, rich_Sink* to);
+
+data(rich_BindOp) {
+  rich_Reactor  reactor[1];
+};
+
+void  rich_bindop_init(rich_BindOp* op);
+void  rich_bindop_close(rich_BindOp* op);
+
+/* Initializes a bind operation with a given schema and destination address.
+ * Returns a sink which, when written to, will fill in the address with structured
+ * data according to the schema.
+ */
+rich_Sink* rich_bind(rich_BindOp* op, rich_Schema* schema, void* to);
+
+// Utility for recursive schema implementations
+static void rich_schema_push(rich_Reactor* r, rich_Schema* s, void* to) {
+  *(void**)rich_reactor_push(r, (rich_Reactor_Sink*)s) = to;
+}
+
+/* Default schemas */
+
+extern rich_Schema rich_schema_bool;
+extern rich_Schema rich_schema_int;
+extern rich_Schema rich_schema_float;
+extern rich_Schema rich_schema_string;
+extern rich_Schema rich_schema_cstring; // NULL-terminated strings
+
+// Creates a new Vector schema, which will initialize a Vector object and fill it with 
+rich_Schema*  rich_schema_vector(rich_Schema* vector_of);
+
+/** Struct schema:
+ *
+ * A struct schema fills in data from a rich map.
+ * It has a set of registered sub-schemas, each with a name (corresponding to a map key),
+ * and an offset, which will point to the data inside the target struct.
+ */
+
+rich_Schema*  rich_schema_struct(size_t struct_size);
+void          rich_struct_register(void* struct_schema, rich_String* name, size_t offset, rich_Schema* schema);
+void          rich_struct_cregister(void* struct_schema, const char* name, size_t offset, rich_Schema* schema);
+
+#endif /* RICH_BIND_H_D656D10B3990D3 */
+

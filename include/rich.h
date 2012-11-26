@@ -25,9 +25,10 @@ typedef enum {
 } rich_Atom;
 
 data(rich_String) {
-  size_t      sz;
-  const char* data;
+  size_t  sz;
+  char*   data;
 };
+bool rich_string_equal(const rich_String* a, const rich_String* b);
 
 // Handles incoming rich data
 interface(rich_Sink) {
@@ -49,7 +50,7 @@ interface(rich_Codec) {
 
 extern rich_Sink rich_debug_sink;
 
-extern rich_Codec rich_codec_json;
+extern rich_Codec rich_json_codec;
 
 /** Reactor utility
  *
@@ -60,8 +61,9 @@ extern rich_Codec rich_codec_json;
 
 data(rich_Reactor) {
   rich_Sink   base;
-  Vector      stack;
+  Vector      stack[1];
   void*       data;
+  void*       global;   // global across stack frames, for user access
 };
 
 interface(rich_Reactor_Sink) {
@@ -70,6 +72,7 @@ interface(rich_Reactor_Sink) {
 
 void  rich_reactor_init(rich_Reactor* self, size_t stack_data_sz);
 void  rich_reactor_close(rich_Reactor* self);
+void  rich_reactor_reset(rich_Reactor* self);
 
 // Pushes a new sink on the stack and returns a pointer to the associated extra stack data
 void* rich_reactor_push(rich_Reactor* self, rich_Reactor_Sink* sink);

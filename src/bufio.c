@@ -79,12 +79,13 @@ void* buf_output_new(Output* wrap, size_t buffer) {
   return self;
 }
 
-static int64_t buf_output_write(void* _self, const char* src, size_t n) {
+static void buf_output_write(void* _self, const char* src, size_t n) {
   BufOutput* self = _self;
-  if (buffer_avail_write(self->buf) == 0) {
-    buffer_flush(self->buf, self->out);
+  if (buffer_avail_write(self->buf) >= n) {
+    buffer_write(self->buf, src, n);
   }
-  return buffer_write(self->buf, src, n);
+  buffer_flush(self->buf, self->out);
+  call(self->out, write, src, n);
 }
 
 static void buf_output_put(void* _self, char ch) {

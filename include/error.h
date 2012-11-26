@@ -58,6 +58,8 @@ enum {
 void    verr_try(void (*action)(), void (*handle)(error_t error), void (*cleanup)());
 void    verr_raise(error_t error);
 
+#define RAISE(verr) verr_raise(VERR_##verr)
+
 // (There be dragons ahead)
 #define TRY { void (*_action)(); void (*_handle)(error_t) = NULL; void (*_cleanup)() = NULL; \
   _action = ({ void _func()

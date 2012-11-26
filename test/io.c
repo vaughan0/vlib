@@ -6,9 +6,9 @@
 #include <vlib/io.h>
 #include <vlib/bufio.h>
 
-static bool write_cstr(Output* out, const char* str) {
+static void write_cstr(Output* out, const char* str) {
   unsigned n = strlen(str);
-  return io_write(out, str, n) == n;
+  io_write(out, str, n);
 }
 
 static int string_io_write() {
