@@ -79,7 +79,12 @@ void rich_inmem_map_add(rich_Map* map, const char* key, size_t keysz, void* valu
   rich_Key* k = v_malloc(sizeof(rich_Key) + keysz);
   k->size = keysz;
   memcpy(k->data, key, keysz);
-  *(void**)hashtable_insert(&map->value, &k) = value;
+  TRY {
+    *(void**)hashtable_insert(&map->value, &k) = value;
+  } CATCH(err) {
+    free(k);
+    verr_raise(err);
+  } ETRY
 }
 
 /* Sink states */
@@ -278,15 +283,22 @@ rich_InMem* rich_inmem_new() {
   self->sink._impl = &sink_impl;
   self->source._impl = &source_impl;
 
-  llist_init(&self->_values, sizeof(void*));
-  self->_closed = false;
-  vector_init(&self->_states, sizeof(State), 7);
+  TRY {
+    llist_init(&self->_values, sizeof(void*));
+    self->_closed = false;
+    vector_init(&self->_states, sizeof(State), 7);
 
-  State* st = vector_push(&self->_states);
-  st->handler = handler_toplevel;
-  st->data = NULL;
+    State* st = vector_push(&self->_states);
+    st->handler = handler_toplevel;
+    st->data = NULL;
 
-  self->_key = NULL;
+    self->_key = NULL;
+  } CATCH(err) {
+    llist_close(&self->_values);
+    vector_close(&self->_states);
+    free(self);
+    verr_raise(err);
+  } ETRY
   return self;
 }
 

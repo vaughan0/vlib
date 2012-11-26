@@ -507,10 +507,16 @@ static rich_Sink* json_new_sink(void* _self, Output* out) {
   Dumper* d = v_malloc(sizeof(Dumper));
   d->base._impl = &sink_impl;
   d->out = out;
-  vector_init(&d->states, sizeof(State), 7);
-  State* st = vector_push(&d->states);
-  st->first = true;
-  st->handler = null_pre;
+  TRY {
+    vector_init(&d->states, sizeof(State), 7);
+    State* st = vector_push(&d->states);
+    st->first = true;
+    st->handler = null_pre;
+  } CATCH(err) {
+    vector_close(&d->states);
+    free(d);
+    verr_raise(err);
+  } ETRY
   return &d->base;
 }
 

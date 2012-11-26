@@ -331,7 +331,12 @@ static int memoize_query(void* _self, GQI_String* input, GQI_String* result) {
   // Store the result in the hashtable
   GQI_String key;
   gqis_init_copy(&key, input->str, input->sz);
-  cached = hashtable_insert(&self->ht, &key);
+  TRY {
+    cached = hashtable_insert(&self->ht, &key);
+  } CATCH(err) {
+    gqis_release(&key);
+    verr_raise(err);
+  } ETRY
   if (result->str) {
     gqis_init_copy(cached, result->str, result->sz);
   } else {
