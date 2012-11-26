@@ -25,13 +25,6 @@ void verr_init() {
   verr_register(VERR_PIO, &io_provider);
 
   vector_init(try_stack, sizeof(TryFrame), 16);
-  TryFrame* root = vector_push(try_stack);
-  error_t err;
-  if ((err = setjmp(root->env))) {
-    fprintf(stderr, "Unhandled exception: %s\n", verr_msg(err));
-    abort();
-  }
-
 }
 
 void verr_register(int provider, ErrorProvider* impl) {
@@ -54,7 +47,7 @@ const char* verr_msg(error_t err) {
   return buf;
 
 NoDetails:
-  snprintf(buf, sizeof(buf), "error code: %x", err);
+  snprintf(buf, sizeof(buf), "[unknown:%x]", err);
   return buf;
 }
 
@@ -114,6 +107,10 @@ void verr_try(void (*action)(), void (*handle)(error_t error), void (*cleanup)()
 
 void verr_raise(error_t error) {
   assert(error != 0);
-  TryFrame* frame = vector_back(try_stack);
-  longjmp(frame->env, error);
+  if (try_stack->size > 0) {
+    TryFrame* frame = vector_back(try_stack);
+    longjmp(frame->env, error);
+  }
+  fprintf(stderr, "unhandled exception: %s\n", verr_msg(error));
+  abort();
 }

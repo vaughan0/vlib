@@ -62,7 +62,7 @@ void    verr_raise(error_t error);
   _action = ({ void _func()
 #define CATCH(err) _func;}); _handle = ({ void _func(error_t err)
 #define FINALLY _func;}); _cleanup = ({ void _func()
-#define ENDTRY _func;}); verr_try(_action, _handle, _cleanup); }
+#define ETRY _func;}); verr_try(_action, _handle, _cleanup); }
 
 // Safe memory allocation
 static inline void* v_malloc(size_t sz) {
