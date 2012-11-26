@@ -24,7 +24,11 @@ void verr_init() {
   verr_register(VERR_PGENERAL, &general_provider);
   verr_register(VERR_PIO, &io_provider);
 
-  vector_init(try_stack, sizeof(TryFrame), 16);
+  vector_init(try_stack, sizeof(TryFrame), 3);
+}
+void verr_cleanup() {
+  vector_close(try_stack);
+  hashtable_close(providers);
 }
 
 void verr_register(int provider, ErrorProvider* impl) {
@@ -57,6 +61,7 @@ static const char* general_get_msg(error_t err) {
   switch (err) {
     case VERR_ARGERR:     return "invalid argument";
     case VERR_MALFORMED:  return "malformed data";
+    case VERR_NOMEM:      return "out of memory";
   };
   return NULL;
 }

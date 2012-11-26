@@ -31,6 +31,7 @@ data(ErrorProvider) {
 void verr_register(int provider, ErrorProvider* impl);
 
 void verr_init() __attribute__((constructor));
+void verr_cleanup() __attribute__((destructor));
 
 /* Standard providers */
 
