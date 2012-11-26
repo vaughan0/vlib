@@ -62,7 +62,13 @@ rich_String* rich_inmem_string(const char* str, size_t sz) {
 rich_Array* rich_inmem_array() {
   rich_Array* array = v_malloc(sizeof(rich_Array));
   array->type = RICH_ARRAY;
-  vector_init(&array->value, sizeof(void*), 7);
+  TRY {
+    vector_init(&array->value, sizeof(void*), 7);
+  } CATCH(err) {
+    vector_close(&array->value);
+    free(array);
+    verr_raise(err);
+  } ETRY
   return array;
 }
 void rich_inmem_array_push(rich_Array* arr, void* value) {
@@ -72,7 +78,13 @@ void rich_inmem_array_push(rich_Array* arr, void* value) {
 rich_Map* rich_inmem_map() {
   rich_Map* map = v_malloc(sizeof(rich_Map));
   map->type = RICH_MAP;
-  hashtable_init(&map->value, rich_key_hasher, rich_key_equaler, sizeof(rich_Key*), sizeof(void*));
+  TRY {
+    hashtable_init(&map->value, rich_key_hasher, rich_key_equaler, sizeof(rich_Key*), sizeof(void*));
+  } CATCH(err) {
+    hashtable_close(&map->value);
+    free(map);
+    verr_raise(err);
+  } ETRY
   return map;
 }
 void rich_inmem_map_add(rich_Map* map, const char* key, size_t keysz, void* value) {

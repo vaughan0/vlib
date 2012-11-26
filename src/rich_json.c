@@ -526,7 +526,13 @@ static rich_Source* json_new_source(void* _self, Input* in) {
   p->read_tok = false;
   p->in = in;
   p->curtok.sval = NULL;
-  vector_init(p->cbuf, sizeof(char), 32);
+  TRY {
+    vector_init(p->cbuf, sizeof(char), 32);
+  } CATCH(err) {
+    vector_close(p->cbuf);
+    free(p);
+    verr_raise(err);
+  } ETRY
   return &p->base;
 }
 

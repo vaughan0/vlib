@@ -371,6 +371,12 @@ GQI* gqi_new_memoize(GQI* backend) {
   gqi_init(self, &memoize_impl);
   self->backend = backend;
   gqi_acquire(backend);
-  hashtable_init(&self->ht, gqis_hasher, gqis_equaler, sizeof(GQI_String), sizeof(GQI_String));
+  TRY {
+    hashtable_init(&self->ht, gqis_hasher, gqis_equaler, sizeof(GQI_String), sizeof(GQI_String));
+  } CATCH(err) {
+    hashtable_close(&self->ht);
+    free(self);
+    verr_raise(err);
+  } ETRY
   return (GQI*)self;
 }
