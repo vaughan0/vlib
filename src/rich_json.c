@@ -490,6 +490,7 @@ static void _map_sink(void* _self, rich_Reactor* r, rich_Atom atom, void* atom_d
     }
 
     sink_string(r->global, atom_data);
+    io_put(r->global, ':');
     Frame* newf = rich_reactor_push(r, &value_sink);
     f = r->data;
     newf->first = true;
@@ -505,7 +506,6 @@ static rich_Reactor_Sink map_sink = {
 };
 
 static void _value_sink(void* _self, rich_Reactor* r, rich_Atom atom, void* atom_data) {
-  Frame* f = r->data;
   Frame* newf;
 
   char cbuf[100];
@@ -538,21 +538,25 @@ static void _value_sink(void* _self, rich_Reactor* r, rich_Atom atom, void* atom
     case RICH_STRING:
       sink_string(r->global, atom_data);
       break;
+
     case RICH_ARRAY:
       io_put(r->global, '[');
+      rich_reactor_pop(r);
       newf = rich_reactor_push(r, &array_sink);
-      f = r->data;
       newf->first = true;
-      break;
+      return;
+
     case RICH_MAP:
       io_put(r->global, '{');
+      rich_reactor_pop(r);
       newf = rich_reactor_push(r, &map_sink);
-      f = r->data;
       newf->first = true;
-      break;
+      return;
+
     default:
       RAISE(MALFORMED);
   }
+  rich_reactor_pop(r);
 }
 static rich_Reactor_Sink_Impl value_impl = {
   .sink = _value_sink,

@@ -83,9 +83,10 @@ static void buf_output_write(void* _self, const char* src, size_t n) {
   BufOutput* self = _self;
   if (buffer_avail_write(self->buf) >= n) {
     buffer_write(self->buf, src, n);
+  } else {
+    buffer_flush(self->buf, self->out);
+    call(self->out, write, src, n);
   }
-  buffer_flush(self->buf, self->out);
-  call(self->out, write, src, n);
 }
 
 static void buf_output_put(void* _self, char ch) {

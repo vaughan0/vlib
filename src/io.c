@@ -48,6 +48,7 @@ bool io_eof(Input* in) {
 void io_write(Output* out, const char* src, size_t n) {
   if (out->_impl->write) {
     call(out, write, src, n);
+    return;
   }
   assert(out->_impl->put);
   for (unsigned i = 0; i < n; i++) {
@@ -57,6 +58,7 @@ void io_write(Output* out, const char* src, size_t n) {
 void io_put(Output* out, char ch) {
   if (out->_impl->put) {
     call(out, put, ch);
+    return;
   }
   assert(out->_impl->write);
   io_write(out, &ch, 1);
