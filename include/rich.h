@@ -54,21 +54,42 @@ extern rich_Sink rich_debug_sink;
 
 extern rich_Codec rich_codec_json;
 
-/* Reactor utility */
+/** Reactor utility
+ *
+ * Note: when pushing and popping from/to the reactor, the current frame data
+ * (r->data) may be moved, so be sure to either save the data somewhere or get
+ * the pointer from the reactor again after pushing/popping.
+ */
 
 data(rich_Reactor) {
   rich_Sink   base;
   Vector      stack;
+  void*       data;
 };
 
-void  rich_reactor_init(rich_Reactor* self, size_t stack_data);
+interface(rich_Reactor_Sink) {
+  void (*sink_nil)(void* self, rich_Reactor* r);
+  void (*sink_bool)(void* self, rich_Reactor* r, bool val);
+  void (*sink_int)(void* self, rich_Reactor* r, int val);
+  void (*sink_float)(void* self, rich_Reactor* r, double val);
+  void (*sink_string)(void* self, rich_Reactor* r, const char* str, size_t sz);
+
+  void (*begin_array)(void* self, rich_Reactor* r);
+  void (*end_array)(void* self, rich_Reactor* r);
+
+  void (*begin_map)(void* self, rich_Reactor* r);
+  void (*sink_key)(void* self, rich_Reactor* r, const char* str, size_t sz);
+  void (*end_map)(void* self, rich_Reactor* r);
+
+  void (*close)(void* self);
+};
+
+void  rich_reactor_init(rich_Reactor* self, size_t stack_data_sz);
 void  rich_reactor_close(rich_Reactor* self);
 
 // Pushes a new sink on the stack and returns a pointer to the associated extra stack data
-void* rich_reactor_push(rich_Reactor* self, rich_Sink* schema);
-// Pops a sink from the stack
+void* rich_reactor_push(rich_Reactor* self, rich_Reactor_Sink* sink);
 void  rich_reactor_pop(rich_Reactor* self);
-
 
 #endif /* RICH_H_E9E4E2E787721B */
 
