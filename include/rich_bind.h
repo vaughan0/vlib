@@ -65,7 +65,7 @@ void          rich_struct_register(void* struct_schema, rich_String* name, size_
 void          rich_struct_cregister(void* struct_schema, const char* name, size_t offset, rich_Schema* schema);
 
 // Allocates data and delegates it to another schema
-rich_Schema*  rich_schema_pointer(size_t data_size, rich_Schema* sub);
+rich_Schema*  rich_schema_pointer(rich_Schema* sub);
 
 #endif /* RICH_BIND_H_D656D10B3990D3 */
 

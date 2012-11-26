@@ -330,3 +330,46 @@ static rich_Schema_Impl struct_impl = {
 /* pointer */
 
 static rich_Schema_Impl pointer_impl;
+
+data(PointerSchema) {
+  rich_Schema   base;
+  rich_Schema*  sub;
+};
+
+rich_Schema* rich_schema_pointer(rich_Schema* sub) {
+  PointerSchema* self = v_malloc(sizeof(PointerSchema));
+  self->base._impl = &pointer_impl;
+  self->sub = sub;
+  return &self->base;
+}
+
+static void pointer_sink(void* _self, rich_Reactor* r, rich_Atom atom, void* atom_data) {
+  PointerSchema* self = _self;
+  void** to = ((rich_Frame*)r->data)->to;
+  size_t sz = call(self->sub, data_size);
+  *to = v_malloc(sz);
+  memset(*to, 0, sz);
+  rich_reactor_pop(r);
+  rich_schema_push(r, self->sub, *to);
+  call((rich_Reactor_Sink*)self->sub, sink, r, atom, atom_data);
+}
+static void pointer_dump(void* _self, void* from, rich_Sink* to) {
+  PointerSchema* self = _self;
+  from = *(void**)from;
+  call(self->sub, dump_value, from, to);
+}
+static size_t pointer_size(void* _self) {
+  return sizeof(void*);
+}
+static void pointer_close(void* _self) {
+  PointerSchema* self = _self;
+  rich_schema_close(self->sub);
+  free(self);
+}
+
+static rich_Schema_Impl pointer_impl = {
+  .sink_impl.sink = pointer_sink,
+  .dump_value = pointer_dump,
+  .data_size = pointer_size,
+  .close = pointer_close,
+};
