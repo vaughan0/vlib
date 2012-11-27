@@ -41,7 +41,7 @@ static void rich_schema_push(rich_Reactor* r, rich_Schema* s, void* to) {
 extern rich_Schema rich_schema_bool;
 extern rich_Schema rich_schema_int;
 extern rich_Schema rich_schema_float;
-extern rich_Schema rich_schema_string;
+extern rich_Schema rich_schema_string;  // rich_String
 extern rich_Schema rich_schema_cstring; // NULL-terminated strings
 
 // Does nothing with the data it receives
