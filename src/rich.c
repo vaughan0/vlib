@@ -4,10 +4,21 @@
 #include <stdlib.h>
 
 #include <vlib/rich.h>
+#include <vlib/hashtable.h>
 
 bool rich_string_equal(const rich_String* a, const rich_String* b) {
   if (a->sz != b->sz) return false;
   return memcmp(a->data, b->data, a->sz) == 0;
+}
+
+uint64_t rich_string_hasher(const void* k, size_t sz) {
+  const rich_String* str = k;
+  return hasher_fnv64(str->data, str->sz);
+}
+int rich_string_equaler(const void* _a, const void* _b, size_t sz) {
+  const rich_String *a = _a, *b = _b;
+  if (a->sz != b->sz) return -1;
+  return memcmp(a->data, b->data, a->sz);
 }
 
 /* Debug sink */

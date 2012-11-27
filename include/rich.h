@@ -28,7 +28,12 @@ data(rich_String) {
   size_t  sz;
   char*   data;
 };
+
 bool rich_string_equal(const rich_String* a, const rich_String* b);
+
+// rich_String hashtable key support
+uint64_t rich_string_hasher(const void* k, size_t sz);
+int rich_string_equaler(const void* a, const void* b, size_t sz);
 
 // Handles incoming rich data
 interface(rich_Sink) {

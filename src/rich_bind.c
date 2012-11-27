@@ -5,6 +5,7 @@
 
 #include <vlib/rich_bind.h>
 #include <vlib/vector.h>
+#include <vlib/hashtable.h>
 
 void rich_dump(rich_Schema* schema, void* from, rich_Sink* to) {
   call(schema, dump_value, from, to);
@@ -265,8 +266,68 @@ data(HashtableSchema) {
 };
 
 rich_Schema* rich_schema_hashtable(rich_Schema* of) {
-
+  HashtableSchema* self = v_malloc(sizeof(HashtableSchema));
+  self->base._impl = &hashtable_impl;
+  self->of = of;
+  return &self->base;
 }
+
+static void hashtable_init_frame(void* _self, void* _frame) {
+  rich_Frame* f = _frame;
+  f->udata = 0;
+}
+static void hashtable_sink(void* _self, rich_Reactor* r, rich_Atom atom, void* atom_data) {
+  HashtableSchema* self = _self;
+  rich_Frame* frame = r->data;
+  Hashtable* to = frame->to;
+  if (frame->udata == 0) {
+    if (atom != RICH_MAP) RAISE(MALFORMED);
+    hashtable_init(to, rich_string_hasher, rich_string_equaler, sizeof(rich_String), call(self->of, data_size));
+    frame->udata = (void*)1;
+  } else if (atom == RICH_ENDMAP) {
+    rich_reactor_pop(r);
+  } else if (atom == RICH_KEY) {
+    rich_String* key = atom_data;
+    if (hashtable_get(to, key) != NULL) RAISE(MALFORMED);
+    rich_String copy;
+    copy.sz = key->sz;
+    copy.data = v_malloc(key->sz);
+    memcpy(copy.data, key->data, key->sz);
+    void* elem = hashtable_insert(to, &copy);
+    rich_schema_push(r, self->of, elem);
+  } else RAISE(MALFORMED);
+}
+static void hashtable_dump(void* _self, void* from, rich_Sink* to) {
+  HashtableSchema* self = _self;
+  Hashtable* ht = from;
+  call(to, sink, RICH_MAP, NULL);
+
+  HT_Iter iter;
+  hashtable_iter(ht, &iter);
+  void *_key, *value;
+  while ( (_key = hashtable_next(&iter, &value)) != NULL ) {
+    rich_String* key = _key;
+    call(to, sink, RICH_KEY, key);
+    call(self->of, dump_value, value, to);
+  }
+
+  call(to, sink, RICH_ENDMAP, NULL);
+}
+static size_t hashtable_size(void* _self) {
+  return sizeof(Hashtable);
+}
+static void _hashtable_close(void* _self) {
+  HashtableSchema* self = _self;
+  rich_schema_close(self->of);
+  free(self);
+}
+static rich_Schema_Impl hashtable_impl = {
+  .sink_impl.init_frame = hashtable_init_frame,
+  .sink_impl.sink = hashtable_sink,
+  .dump_value = hashtable_dump,
+  .data_size = hashtable_size,
+  .close = _hashtable_close,
+};
 
 /* struct */
 

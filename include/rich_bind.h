@@ -44,21 +44,9 @@ extern rich_Schema rich_schema_float;
 extern rich_Schema rich_schema_string;
 extern rich_Schema rich_schema_cstring; // NULL-terminated strings
 
-/* Compound data helpers */
-
-interface(rich_ArraySchema) {
-  void  (*begin_array)(void* self, rich_Frame* frame);
-  void  (*end_array)(void* self, rich_Frame* frame);
-  void  (*sink_elem)(void* self, rich_Reactor* r, rich_Atom atom, void* data);
-  void  (*close)(void* self);
-};
-
-interface(rich_MapSchema) {
-  void  (*begin_map)(void* self, rich_Frame* frame);
-};
-
 rich_Schema*  rich_schema_vector(rich_Schema* vector_of);
 
+// Uses rich_String structs as keys
 rich_Schema*  rich_schema_hashtable(rich_Schema* hashtable_of);
 
 /** Struct schema:
