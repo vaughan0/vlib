@@ -49,6 +49,7 @@ void* hashtable_insert(Hashtable* ht, const void* key);
 void hashtable_remove(Hashtable* ht, const void* key, void* oldkey);
 
 /* Iteration */
+// TODO: replace with callback-style iteration (see llist iter)
 
 data(HT_Iter) {
   Hashtable*  ht;

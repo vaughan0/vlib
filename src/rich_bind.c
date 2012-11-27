@@ -550,10 +550,12 @@ static void tuple_sink(void* _self, rich_Reactor* r, rich_Atom atom, void* atom_
   if (*counter == 0) {
     if (atom != RICH_ARRAY) RAISE(MALFORMED);
     *counter = 1;
+    memset(to, 0, self->data_size);
   } else if (atom == RICH_ENDARRAY) {
     rich_reactor_pop(r);
   } else {
     TupleField* field = vector_get(self->elems, *counter - 1);
+    (*counter)++;
     rich_schema_push(r, field->schema, (char*)to + field->offset);
     call((rich_Reactor_Sink*)field->schema, sink, r, atom, atom_data);
   }
