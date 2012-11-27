@@ -390,7 +390,7 @@ data(StructSchema) {
   Vector      fields[1];
 };
 
-data(Field) {
+data(StructField) {
   rich_String   name;
   rich_Schema*  schema;
   size_t        offset;
@@ -402,7 +402,7 @@ rich_Schema* rich_schema_struct(size_t sz) {
   self->data_size = sz;
   self->ignore_unknown = false;
   TRY {
-    vector_init(self->fields, sizeof(Field), 7);
+    vector_init(self->fields, sizeof(StructField), 7);
   } CATCH(err) {
     vector_close(self->fields);
     free(self);
@@ -418,7 +418,7 @@ void rich_struct_set_ignore_unknown(void* _self, bool ignore) {
 
 void rich_struct_register(void* _self, rich_String* name, size_t offset, rich_Schema* schema) {
   StructSchema* self = _self;
-  Field* field = vector_push(self->fields);
+  StructField* field = vector_push(self->fields);
   field->schema = schema;
   field->offset = offset;
 
@@ -453,9 +453,9 @@ static void struct_sink(void* _self, rich_Reactor* r, rich_Atom atom, void* data
 
     // Find the corresponding field
     rich_String* name = data;
-    Field* field = NULL;
+    StructField* field = NULL;
     for (unsigned i = 0; i < self->fields->size; i++) {
-      Field* f = vector_get(self->fields, i);
+      StructField* f = vector_get(self->fields, i);
       if (rich_string_equal(&f->name, name)) {
         field = f;
         break;
@@ -480,7 +480,7 @@ static void struct_dump(void* _self, void* from, rich_Sink* to) {
   StructSchema* self = _self;
   call(to, sink, RICH_MAP, NULL);
   for (unsigned i = 0; i < self->fields->size; i++) {
-    Field* field = vector_get(self->fields, i);
+    StructField* field = vector_get(self->fields, i);
     call(to, sink, RICH_KEY, &field->name);
     call(field->schema, dump_value, (char*)from + field->offset, to);
   }
@@ -493,7 +493,7 @@ static size_t struct_size(void* _self) {
 static void struct_close(void* _self) {
   StructSchema* self = _self;
   for (unsigned i = 0; i < self->fields->size; i++) {
-    Field* f = vector_get(self->fields, i);
+    StructField* f = vector_get(self->fields, i);
     rich_schema_close(f->schema);
     free(f->name.data);
   }
@@ -507,6 +507,86 @@ static rich_Schema_Impl struct_impl = {
   .dump_value = struct_dump,
   .data_size = struct_size,
   .close = struct_close,
+};
+
+/* tuple */
+
+static rich_Schema_Impl tuple_impl;
+
+data(TupleSchema) {
+  rich_Schema   base;
+  size_t        data_size;
+  Vector        elems[1];
+};
+
+data(TupleField) {
+  size_t        offset;
+  rich_Schema*  schema;
+};
+
+rich_Schema* rich_schema_tuple(size_t struct_size) {
+  TupleSchema* self = v_malloc(sizeof(TupleSchema));
+  self->base._impl = &tuple_impl;
+  self->data_size = struct_size;
+  vector_init(self->elems, sizeof(TupleField), 7);
+  return (rich_Schema*)self;
+}
+void rich_tuple_add(void* _self, size_t offset, rich_Schema* schema) {
+  TupleSchema* self = _self;
+  TupleField* f = vector_push(self->elems);
+  f->offset = offset;
+  f->schema = schema;
+}
+
+static void tuple_init_frame(void* _self, void* _frame) {
+  rich_Frame* frame = _frame;
+  frame->udata = 0;
+}
+static void tuple_sink(void* _self, rich_Reactor* r, rich_Atom atom, void* atom_data) {
+  TupleSchema* self = _self;
+  rich_Frame* frame = r->data;
+  void* to = frame->to;
+  int* counter = (int*)&frame->udata;
+  if (*counter == 0) {
+    if (atom != RICH_ARRAY) RAISE(MALFORMED);
+    *counter = 1;
+  } else if (atom == RICH_ENDARRAY) {
+    rich_reactor_pop(r);
+  } else {
+    TupleField* field = vector_get(self->elems, *counter - 1);
+    rich_schema_push(r, field->schema, (char*)to + field->offset);
+    call((rich_Reactor_Sink*)field->schema, sink, r, atom, atom_data);
+  }
+}
+static void tuple_dump(void* _self, void* from, rich_Sink* to) {
+  TupleSchema* self = _self;
+  call(to, sink, RICH_ARRAY, NULL);
+  for (unsigned i = 0; i < self->elems->size; i++) {
+    TupleField* field = vector_get(self->elems, i);
+    call(field->schema, dump_value, (char*)from + field->offset, to);
+  }
+  call(to, sink, RICH_ENDARRAY, NULL);
+}
+static size_t tuple_size(void* _self) {
+  TupleSchema* self = _self;
+  return self->data_size;
+}
+static void tuple_close(void* _self) {
+  TupleSchema* self = _self;
+  for (unsigned i = 0; i < self->elems->size; i++) {
+    TupleField* f = vector_get(self->elems, i);
+    rich_schema_close(f->schema);
+  }
+  vector_close(self->elems);
+  free(self);
+}
+
+static rich_Schema_Impl tuple_impl = {
+  .sink_impl.init_frame = tuple_init_frame,
+  .sink_impl.sink = tuple_sink,
+  .dump_value = tuple_dump,
+  .data_size = tuple_size,
+  .close = tuple_close,
 };
 
 /* pointer */

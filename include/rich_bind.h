@@ -64,6 +64,15 @@ void          rich_struct_set_ignore_unknown(void* struct_schema, bool ignore);
 void          rich_struct_register(void* struct_schema, rich_String* name, size_t offset, rich_Schema* schema);
 void          rich_struct_cregister(void* struct_schema, const char* name, size_t offset, rich_Schema* schema);
 
+/** Tuple schema:
+ *
+ * Works similarly to a struct schema, but uses ordered elements in an array instead
+ * of named map elements.
+ */
+
+rich_Schema*  rich_schema_tuple(size_t struct_size);
+void          rich_tuple_add(void* tuple_schema, size_t offset, rich_Schema* schema);
+
 // Allocates data and delegates it to another schema
 rich_Schema*  rich_schema_pointer(rich_Schema* sub);
 
