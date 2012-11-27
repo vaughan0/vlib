@@ -10,18 +10,48 @@ void rich_dump(rich_Schema* schema, void* from, rich_Sink* to) {
   call(schema, dump_value, from, to);
 }
 
-void rich_bindop_init(rich_BindOp* op) {
-  rich_reactor_init(op->reactor, sizeof(rich_Frame));
+data(BoundSink) {
+  rich_Sink     base;
+  rich_Schema*  schema;
+  rich_Reactor  reactor[1];
+};
+
+static rich_Sink_Impl bound_sink_impl;
+
+rich_Sink* rich_bind(rich_Schema* schema, void* to) {
+  BoundSink* sink = v_malloc(sizeof(BoundSink));
+  sink->base._impl = &bound_sink_impl;
+  sink->schema = schema;
+  TRY {
+    rich_reactor_init(sink->reactor, sizeof(rich_Frame));
+    rich_schema_push(sink->reactor, schema, to);
+  } CATCH(err) {
+    rich_reactor_close(sink->reactor);
+    free(sink);
+    verr_raise(err);
+  } ETRY
+  return &sink->base;
 }
-void rich_bindop_close(rich_BindOp* op) {
-  rich_reactor_close(op->reactor);
+void rich_rebind(rich_Sink* _self, void* to) {
+  BoundSink* self = (BoundSink*)_self;
+  rich_reactor_reset(self->reactor);
+  rich_schema_push(self->reactor, self->schema, to);
 }
 
-rich_Sink* rich_bind(rich_BindOp* op, rich_Schema* schema, void* to) {
-  rich_reactor_reset(op->reactor);
-  rich_schema_push(op->reactor, schema, to);
-  return &op->reactor->base;
+static void bound_close(void* _self) {
+  BoundSink* self = _self;
+  rich_reactor_close(self->reactor);
+  free(self);
 }
+static void bound_sink(void* _self, rich_Atom atom, void* atom_data) {
+  BoundSink* self = _self;
+  call(&self->reactor->base, sink, atom, atom_data);
+}
+
+static rich_Sink_Impl bound_sink_impl = {
+  .sink = bound_sink,
+  .close = bound_close,
+};
 
 /* bool */
 
@@ -95,16 +125,24 @@ rich_Schema rich_schema_float = {
 /* string */
 
 static void string_sink(void* _self, rich_Reactor* r, rich_Atom atom, void* data) {
-  if (atom != RICH_STRING) RAISE(MALFORMED);
   rich_String* to = ((rich_Frame*)r->data)->to;
-  rich_String* from = data;
-  to->sz = from->sz;
-  to->data = v_malloc(from->sz);
-  memcpy(to->data, from->data, from->sz);
+  if (atom == RICH_STRING) {
+    rich_String* from = data;
+    to->sz = from->sz;
+    to->data = v_malloc(from->sz);
+    memcpy(to->data, from->data, from->sz);
+  } else if (atom == RICH_NIL) {
+    to->sz = 0;
+    to->data = NULL;
+  } else RAISE(MALFORMED);
   rich_reactor_pop(r);
 }
 static void string_dump(void* _self, void* from, rich_Sink* to) {
-  call(to, sink, RICH_STRING, from);
+  rich_String* str = from;
+  if (str->data)
+    call(to, sink, RICH_STRING, str);
+  else
+    call(to, sink, RICH_NIL, NULL);
 }
 static size_t string_size(void* _self) {
   return sizeof(rich_String);
@@ -121,21 +159,28 @@ rich_Schema rich_schema_string = {
 /* cstring */
 
 static void cstring_sink(void* _self, rich_Reactor* r, rich_Atom atom, void* data) {
-  if (atom != RICH_STRING) RAISE(MALFORMED);
   char** to = ((rich_Frame*)r->data)->to;
-  rich_String* from = data;
-  *to = v_malloc(from->sz + 1);
-  memcpy(*to, from->data, from->sz);
-  to[from->sz] = 0;
+  if (atom == RICH_STRING) {
+    rich_String* from = data;
+    *to = v_malloc(from->sz + 1);
+    memcpy(*to, from->data, from->sz);
+    to[from->sz] = 0;
+  } else if (atom == RICH_NIL) {
+    *to = NULL;
+  } else RAISE(MALFORMED);
   rich_reactor_pop(r);
 }
 static void cstring_dump(void* _self, void* from, rich_Sink* to) {
   char* cstr = *(char**)from;
-  rich_String s = {
-    .sz = strlen(cstr),
-    .data = cstr,
-  };
-  call(to, sink, RICH_STRING, &s);
+  if (cstr) {
+    rich_String s = {
+      .sz = strlen(cstr),
+      .data = cstr,
+    };
+    call(to, sink, RICH_STRING, &s);
+  } else {
+    call(to, sink, RICH_NIL, NULL);
+  }
 }
 static size_t cstring_size(void* _self) {
   return sizeof(char*);
@@ -210,6 +255,19 @@ static rich_Schema_Impl vector_impl = {
   .close = _vector_close,
 };
 
+/* Hashtable */
+
+static rich_Schema_Impl hashtable_impl;
+
+data(HashtableSchema) {
+  rich_Schema   base;
+  rich_Schema*  of;
+};
+
+rich_Schema* rich_schema_hashtable(rich_Schema* of) {
+
+}
+
 /* struct */
 
 static rich_Schema_Impl struct_impl;
@@ -217,6 +275,7 @@ static rich_Schema_Impl struct_impl;
 data(StructSchema) {
   rich_Schema base;
   size_t      data_size;
+  bool        ignore_unknown;
   Vector      fields[1];
 };
 
@@ -230,6 +289,7 @@ rich_Schema* rich_schema_struct(size_t sz) {
   StructSchema* self = v_malloc(sizeof(StructSchema));
   self->base._impl = &struct_impl;
   self->data_size = sz;
+  self->ignore_unknown = false;
   TRY {
     vector_init(self->fields, sizeof(Field), 7);
   } CATCH(err) {
@@ -238,6 +298,11 @@ rich_Schema* rich_schema_struct(size_t sz) {
     verr_raise(err);
   } ETRY
   return &self->base;
+}
+
+void rich_struct_set_ignore_unknown(void* _self, bool ignore) {
+  StructSchema* self = _self;
+  self->ignore_unknown = ignore;
 }
 
 void rich_struct_register(void* _self, rich_String* name, size_t offset, rich_Schema* schema) {
@@ -285,7 +350,12 @@ static void struct_sink(void* _self, rich_Reactor* r, rich_Atom atom, void* data
         break;
       }
     }
-    if (!field) RAISE(MALFORMED);
+    if (!field) {
+      if (self->ignore_unknown) {
+        return;
+      }
+      RAISE(MALFORMED);
+    }
 
     // Delegate for the next atom
     rich_schema_push(r, field->schema, (char*)to + field->offset);
@@ -346,17 +416,25 @@ rich_Schema* rich_schema_pointer(rich_Schema* sub) {
 static void pointer_sink(void* _self, rich_Reactor* r, rich_Atom atom, void* atom_data) {
   PointerSchema* self = _self;
   void** to = ((rich_Frame*)r->data)->to;
-  size_t sz = call(self->sub, data_size);
-  *to = v_malloc(sz);
-  memset(*to, 0, sz);
-  rich_reactor_pop(r);
-  rich_schema_push(r, self->sub, *to);
-  call((rich_Reactor_Sink*)self->sub, sink, r, atom, atom_data);
+  if (atom == RICH_NIL) {
+    *to = NULL;
+    rich_reactor_pop(r);
+  } else {
+    size_t sz = call(self->sub, data_size);
+    *to = v_malloc(sz);
+    memset(*to, 0, sz);
+    rich_reactor_pop(r);
+    rich_schema_push(r, self->sub, *to);
+    call((rich_Reactor_Sink*)self->sub, sink, r, atom, atom_data);
+  }
 }
 static void pointer_dump(void* _self, void* from, rich_Sink* to) {
   PointerSchema* self = _self;
   from = *(void**)from;
-  call(self->sub, dump_value, from, to);
+  if (from)
+    call(self->sub, dump_value, from, to);
+  else
+    call(to, sink, RICH_NIL, NULL);
 }
 static size_t pointer_size(void* _self) {
   return sizeof(void*);

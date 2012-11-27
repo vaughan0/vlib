@@ -23,18 +23,12 @@ static inline void rich_schema_close(rich_Schema* s) {
 // Dumps data of a certain schema, from a given address, to a sink
 void rich_dump(rich_Schema* schema, void* from, rich_Sink* to);
 
-data(rich_BindOp) {
-  rich_Reactor  reactor[1];
-};
-
-void  rich_bindop_init(rich_BindOp* op);
-void  rich_bindop_close(rich_BindOp* op);
-
 /* Initializes a bind operation with a given schema and destination address.
  * Returns a sink which, when written to, will fill in the address with structured
  * data according to the schema.
  */
-rich_Sink* rich_bind(rich_BindOp* op, rich_Schema* schema, void* to);
+rich_Sink*  rich_bind(rich_Schema* schema, void* to);
+void        rich_rebind(rich_Sink* bound_sink, void* to);
 
 // Utility for recursive schema implementations
 static void rich_schema_push(rich_Reactor* r, rich_Schema* s, void* to) {
@@ -50,8 +44,22 @@ extern rich_Schema rich_schema_float;
 extern rich_Schema rich_schema_string;
 extern rich_Schema rich_schema_cstring; // NULL-terminated strings
 
-// Creates a new Vector schema, which will initialize a Vector object and fill it with 
+/* Compound data helpers */
+
+interface(rich_ArraySchema) {
+  void  (*begin_array)(void* self, rich_Frame* frame);
+  void  (*end_array)(void* self, rich_Frame* frame);
+  void  (*sink_elem)(void* self, rich_Reactor* r, rich_Atom atom, void* data);
+  void  (*close)(void* self);
+};
+
+interface(rich_MapSchema) {
+  void  (*begin_map)(void* self, rich_Frame* frame);
+};
+
 rich_Schema*  rich_schema_vector(rich_Schema* vector_of);
+
+rich_Schema*  rich_schema_hashtable(rich_Schema* hashtable_of);
 
 /** Struct schema:
  *
@@ -61,6 +69,7 @@ rich_Schema*  rich_schema_vector(rich_Schema* vector_of);
  */
 
 rich_Schema*  rich_schema_struct(size_t struct_size);
+void          rich_struct_set_ignore_unknown(void* struct_schema, bool ignore);
 void          rich_struct_register(void* struct_schema, rich_String* name, size_t offset, rich_Schema* schema);
 void          rich_struct_cregister(void* struct_schema, const char* name, size_t offset, rich_Schema* schema);
 
