@@ -202,7 +202,7 @@ static void discard_init_frame(void* _self, void* _frame) {
   frame->udata = 0;
 }
 static void discard_sink(void* _self, rich_Reactor* r, rich_Atom atom, void* data) {
-  rich_Frame* frame = data;
+  rich_Frame* frame = r->data;
   int* counter = (int*)&frame->udata;
   switch (atom) {
     case RICH_ARRAY:
