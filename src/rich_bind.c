@@ -80,9 +80,12 @@ rich_Schema rich_schema_bool = {
 /* int */
 
 static void int_sink(void* _self, rich_Reactor* r, rich_Atom atom, void* data) {
-  if (atom != RICH_INT) RAISE(MALFORMED);
   int* to = ((rich_Frame*)r->data)->to;
-  *to = *(int*)data;
+  if (atom == RICH_INT) {
+    *to = *(int*)data;
+  } else if (atom == RICH_FLOAT) {
+    *to = (int)(*(float*)data);
+  } else RAISE(MALFORMED);
   rich_reactor_pop(r);
 }
 static void int_dump(void* _self, void* from, rich_Sink* to) {
@@ -103,9 +106,12 @@ rich_Schema rich_schema_int = {
 /* float */
 
 static void float_sink(void* _self, rich_Reactor* r, rich_Atom atom, void* data) {
-  if (atom != RICH_FLOAT) RAISE(MALFORMED);
   double* to = ((rich_Frame*)r->data)->to;
-  *to = *(double*)data;
+  if (atom == RICH_FLOAT) {
+    *to = *(double*)data;
+  } else if (atom == RICH_INT) {
+    *to = *(int*)data;
+  } else RAISE(MALFORMED);
   rich_reactor_pop(r);
 }
 static void float_dump(void* _self, void* from, rich_Sink* to) {
