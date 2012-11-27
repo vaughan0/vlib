@@ -195,6 +195,45 @@ rich_Schema rich_schema_cstring = {
   ._impl = &cstring_impl,
 };
 
+/* Discard */
+
+static void discard_init_frame(void* _self, void* _frame) {
+  rich_Frame* frame = _frame;
+  frame->udata = 0;
+}
+static void discard_sink(void* _self, rich_Reactor* r, rich_Atom atom, void* data) {
+  rich_Frame* frame = data;
+  int* counter = (int*)&frame->udata;
+  switch (atom) {
+    case RICH_ARRAY:
+    case RICH_MAP:
+      (*counter)++;
+      break;
+    case RICH_ENDARRAY:
+    case RICH_ENDMAP:
+      (*counter)--;
+      break;
+    default:
+      break;
+  }
+  if (*counter == 0) {
+    rich_reactor_pop(r);
+  }
+}
+static void discard_dump(void* _self, void* from, rich_Sink* to) {}
+static size_t discard_size(void* _self) {
+  return 0;
+}
+static rich_Schema_Impl discard_impl = {
+  .sink_impl.init_frame = discard_init_frame,
+  .sink_impl.sink = discard_sink,
+  .dump_value = discard_dump,
+  .data_size = discard_size,
+};
+rich_Schema rich_schema_discard = {
+  ._impl = &discard_impl,
+};
+
 /* Vector */
 
 static rich_Schema_Impl vector_impl;
@@ -417,16 +456,16 @@ static void struct_sink(void* _self, rich_Reactor* r, rich_Atom atom, void* data
       }
     }
     if (!field) {
-      /* TODO: make a NULL schema to discard values
       if (self->ignore_unknown) {
-        return;
-      }*/
-      RAISE(MALFORMED);
+        // Delegate to the discard schema
+        rich_schema_push(r, &rich_schema_discard, NULL);
+      } else {
+        RAISE(MALFORMED);
+      }
+    } else {
+      // Delegate for the next atom
+      rich_schema_push(r, field->schema, (char*)to + field->offset);
     }
-
-    // Delegate for the next atom
-    rich_schema_push(r, field->schema, (char*)to + field->offset);
-
   } else {
     RAISE(MALFORMED);
   }

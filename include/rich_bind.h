@@ -44,6 +44,9 @@ extern rich_Schema rich_schema_float;
 extern rich_Schema rich_schema_string;
 extern rich_Schema rich_schema_cstring; // NULL-terminated strings
 
+// Does nothing with the data it receives
+extern rich_Schema rich_schema_discard;
+
 rich_Schema*  rich_schema_vector(rich_Schema* vector_of);
 
 // Uses rich_String structs as keys
