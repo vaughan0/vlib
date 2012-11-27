@@ -165,7 +165,7 @@ static void cstring_sink(void* _self, rich_Reactor* r, rich_Atom atom, void* dat
     rich_String* from = data;
     *to = v_malloc(from->sz + 1);
     memcpy(*to, from->data, from->sz);
-    to[from->sz] = 0;
+    (*to)[from->sz] = 0;
   } else if (atom == RICH_NIL) {
     *to = NULL;
   } else RAISE(MALFORMED);
@@ -417,9 +417,10 @@ static void struct_sink(void* _self, rich_Reactor* r, rich_Atom atom, void* data
       }
     }
     if (!field) {
+      /* TODO: make a NULL schema to discard values
       if (self->ignore_unknown) {
         return;
-      }
+      }*/
       RAISE(MALFORMED);
     }
 
