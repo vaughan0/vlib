@@ -10,7 +10,7 @@
 
 /* Base functions */
 
-int64_t io_read(Input* in, char* dst, size_t n) {
+size_t io_read(Input* in, char* dst, size_t n) {
   if (in->_impl->read) {
     return call(in, read, dst, n);
   }
@@ -70,23 +70,22 @@ void io_flush(Output* output) {
 
 /* Utilities */
 
-int64_t io_copy(Input* from, Output* to) {
+size_t io_copy(Input* from, Output* to) {
   char cbuf[4096];
-  int64_t copied = 0;
+  size_t copied = 0;
   for (;;) {
-    int64_t r = io_read(from, cbuf, sizeof(cbuf));
+    size_t r = io_read(from, cbuf, sizeof(cbuf));
     if (r <= 0) break;
     io_write(to, cbuf, r);
     copied += r;
   }
   return copied;
 }
-int64_t io_copyn(Input* from, Output* to, size_t n) {
+size_t io_copyn(Input* from, Output* to, size_t n) {
   char cbuf[4096];
   size_t copied = 0;
   while (copied < n) {
-    int64_t r = io_read(from, cbuf, MIN(sizeof(cbuf), n-copied));
-    if (r <= 0) break;
+    size_t r = io_read(from, cbuf, MIN(sizeof(cbuf), n-copied));
     io_write(to, cbuf, r);
     copied += r;
   }
@@ -113,7 +112,7 @@ Input* string_input_new(const char* src, size_t sz) {
   return &self->base;
 }
 
-static int64_t string_input_read(void* _self, char* dst, size_t n) {
+static size_t string_input_read(void* _self, char* dst, size_t n) {
   StringInput* self = _self;
   n = MIN(n, self->size - self->offset);
   memcpy(dst, self->src + self->offset, n);
@@ -284,104 +283,149 @@ static Output_Impl string_output_impl = {
   .close = string_output_close,
 };
 
-/* File descriptor wrappers */
+/* Limited input */
 
-data(FDInput) {
+data(LimitedInput) {
+  Input   base;
+  Input*  in;
+  size_t  limit;
+  size_t  read;
+};
+
+static size_t limited_read(void* _self, char* dst, size_t n) {
+  LimitedInput* self = _self;
+  n = MIN(n, self->limit - self->read);
+  if (n == 0) return 0;
+  size_t r = io_read(self->in, dst, n);
+  self->read += r;
+  return r;
+}
+static int limited_get(void* _self) {
+  LimitedInput* self = _self;
+  if (self->read < self->limit) {
+    int ch = io_get(self->in);
+    self->read += (ch == -1) ? 0 : 1;
+    return ch;
+  } else {
+    return -1;
+  }
+}
+static bool limited_eof(void* _self) {
+  LimitedInput* self = _self;
+  return (self->read == self->limit) || io_eof(self->in);
+}
+static void limited_close(void* _self) {
+  LimitedInput* self = _self;
+  call(self->in, close);
+  free(self);
+}
+
+static Input_Impl limited_impl = {
+  .read = limited_read,
+  .get = limited_get,
+  .eof = limited_eof,
+  .close = limited_close,
+};
+Input* limited_input_new(Input* in, size_t limit) {
+  LimitedInput* self = v_malloc(sizeof(LimitedInput));
+  self->base._impl = &limited_impl;
+  self->in = in;
+  self->limit = limit;
+  self->read = 0;
+  return (Input*)self;
+}
+
+/* File wrappers */
+
+data(FileInput) {
   Input   base;
   FILE*   file;
 };
 
-static Input_Impl fd_input_impl;
+static Input_Impl file_input_impl;
 
-Input* fd_input_new(int fd) {
-  FILE* file = fdopen(fd, "r");
-  if (!file) return NULL;
-  FDInput* self = v_malloc(sizeof(FDInput));
-  self->base._impl = &fd_input_impl;
+Input* file_input_new(FILE* file) {
+  FileInput* self = v_malloc(sizeof(FileInput));
+  self->base._impl = &file_input_impl;
   self->file = file;
   return &self->base;
 }
 
-static int64_t fd_input_read(void* _self, char* dst, size_t n) {
-  FDInput* self = _self;
+static size_t file_input_read(void* _self, char* dst, size_t n) {
+  FileInput* self = _self;
   if (feof(self->file)) return 0;
   return fread(dst, 1, n, self->file);
 }
 
-static int fd_input_get(void* _self) {
-  FDInput* self = _self;
+static int file_input_get(void* _self) {
+  FileInput* self = _self;
   int c = fgetc(self->file);
   return (c == EOF) ? VERR_EOF : c;
 }
 
-static bool fd_input_eof(void* _self) {
-  FDInput* self = _self;
+static bool file_input_eof(void* _self) {
+  FileInput* self = _self;
   return feof(self->file) != 0;
 }
 
-static void fd_input_close(void* _self) {
-  FDInput* self = _self;
+static void file_input_close(void* _self) {
+  FileInput* self = _self;
   fclose(self->file);
   free(self);
 }
 
-static Input_Impl fd_input_impl = {
-  .read = fd_input_read,
-  .get = fd_input_get,
-  .eof = fd_input_eof,
-  .close = fd_input_close,
+static Input_Impl file_input_impl = {
+  .read = file_input_read,
+  .get = file_input_get,
+  .eof = file_input_eof,
+  .close = file_input_close,
 };
 
-data(FDOutput) {
+data(FileOutput) {
   Output  base;
   FILE*   file;
 };
 
-static Output_Impl fd_output_impl;
+static Output_Impl file_output_impl;
 
-Output* fd_output_new(int fd) {
-  FDOutput* self = v_malloc(sizeof(FDOutput));
-  FILE* file = fdopen(fd, "w");
-  if (!file) {
-    free(self);
-    return NULL;
-  }
-  self->base._impl = &fd_output_impl;
+Output* file_output_new(FILE* file) {
+  FileOutput* self = v_malloc(sizeof(FileOutput));
+  self->base._impl = &file_output_impl;
   self->file = file;
   return &self->base;
 }
 
-static void fd_output_write(void* _self, const char* src, size_t n) {
-  FDOutput* self = _self;
+static void file_output_write(void* _self, const char* src, size_t n) {
+  FileOutput* self = _self;
   if (fwrite(src, 1, n, self->file) != n) RAISE(IO);
 }
 
-static void fd_output_put(void* _self, char ch) {
-  FDOutput* self = _self;
+static void file_output_put(void* _self, char ch) {
+  FileOutput* self = _self;
   if (fputc((int)ch, self->file) == EOF) verr_raise(VERR_IO);
 }
 
-static void fd_output_flush(void* _self) {
-  FDOutput* self = _self;
+static void file_output_flush(void* _self) {
+  FileOutput* self = _self;
   if (fflush(self->file)) verr_raise(VERR_IO);
 }
 
-static void fd_output_close(void* _self) {
-  FDOutput* self = _self;
+static void file_output_close(void* _self) {
+  FileOutput* self = _self;
   fclose(self->file);
   free(self);
 }
 
-static Output_Impl fd_output_impl = {
-  .write = fd_output_write,
-  .put = fd_output_put,
-  .flush = fd_output_flush,
-  .close = fd_output_close,
+static Output_Impl file_output_impl = {
+  .write = file_output_write,
+  .put = file_output_put,
+  .flush = file_output_flush,
+  .close = file_output_close,
 };
 
 /* Null IO */
 
-static int64_t null_input_read(void* self, char* dst, size_t n) {
+static size_t null_input_read(void* self, char* dst, size_t n) {
   return 0;
 }
 static int null_input_get(void* self) {
@@ -421,7 +465,7 @@ Output null_output = {
 
 /* Zero input */
 
-static int64_t zero_input_read(void* self, char* dst, size_t n) {
+static size_t zero_input_read(void* self, char* dst, size_t n) {
   memset(dst, 0, n);
   return n;
 }

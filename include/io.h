@@ -3,12 +3,13 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 #include <vlib/std.h>
 #include <vlib/error.h>
 
 interface(Input) {
-  int64_t (*read)(void* self, char* dst, size_t n);
+  size_t  (*read)(void* self, char* dst, size_t n);
   int     (*get)(void* self);
   void    (*unget)(void* self);
   bool    (*eof)(void* self);
@@ -22,7 +23,7 @@ interface(Output) {
   void    (*close)(void* self);
 };
 
-int64_t     io_read(Input* input, char* dst, size_t n);
+size_t      io_read(Input* input, char* dst, size_t n);
 int         io_get(Input* input);
 void        io_unget(Input* input);
 bool        io_eof(Input* input);
@@ -33,8 +34,8 @@ void        io_flush(Output* output);
 
 /* Utility functions */
 
-int64_t     io_copy(Input* from, Output* to);
-int64_t     io_copyn(Input* from, Output* to, size_t max);
+size_t      io_copy(Input* from, Output* to);
+size_t      io_copyn(Input* from, Output* to, size_t max);
 
 /* Some standard IO implementations */
 
@@ -44,8 +45,10 @@ Output*     string_output_new(size_t initcap);
 const char* string_output_data(Output* string_output, size_t* size);
 void        string_output_reset(Output* string_output);
 
-Input*      fd_input_new(int fd);
-Output*     fd_output_new(int fd);
+Input*      file_input_new(FILE* f);
+Output*     file_output_new(FILE* f);
+
+Input*      limited_input_new(Input* in, size_t limit);
 
 extern Input  null_input;   // Always returns EOF
 extern Output null_output;  // Discards all data

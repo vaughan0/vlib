@@ -26,7 +26,7 @@ static void buf_input_close(void* _self) {
   free(self);
 }
 
-static int64_t buf_input_read(void* _self, char* dst, size_t n) {
+static size_t buf_input_read(void* _self, char* dst, size_t n) {
   BufInput* self = _self;
   if (buffer_avail_read(self->buf) == 0) {
     buffer_fill(self->buf, self->in);
