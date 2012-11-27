@@ -293,8 +293,13 @@ static void hashtable_sink(void* _self, rich_Reactor* r, rich_Atom atom, void* a
     copy.sz = key->sz;
     copy.data = v_malloc(key->sz);
     memcpy(copy.data, key->data, key->sz);
-    void* elem = hashtable_insert(to, &copy);
-    rich_schema_push(r, self->of, elem);
+    TRY {
+      void* elem = hashtable_insert(to, &copy);
+      rich_schema_push(r, self->of, elem);
+    } CATCH(err) {
+      free(copy.data);
+      verr_raise(err);
+    } ETRY
   } else RAISE(MALFORMED);
 }
 static void hashtable_dump(void* _self, void* from, rich_Sink* to) {
