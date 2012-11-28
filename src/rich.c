@@ -82,6 +82,7 @@ void rich_reactor_init(rich_Reactor* self, size_t data_sz) {
   self->base._impl = &reactor_impl;
   vector_init(self->stack, sizeof(Frame) + data_sz, 8);
   self->data = NULL;
+  self->pop_last = false;
 }
 void rich_reactor_close(rich_Reactor* self) {
   vector_close(self->stack);
@@ -104,7 +105,14 @@ void rich_reactor_pop(rich_Reactor* self) {
   if (f->sink->_impl->cleanup_frame) {
     call(f->sink, cleanup_frame, f->data);
   }
-  vector_pop(self->stack);
+  if (self->stack->size == 1 && !self->pop_last) {
+    // Emulate pushing the sink again
+    if (f->sink->_impl->init_frame) {
+      call(f->sink, init_frame, f->data);
+    }
+  } else {
+    vector_pop(self->stack);
+  }
   if (self->stack->size){
     f = vector_back(self->stack);
     self->data = f->data;

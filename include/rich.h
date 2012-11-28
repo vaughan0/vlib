@@ -66,6 +66,7 @@ extern rich_Codec rich_json_codec;
 
 data(rich_Reactor) {
   rich_Sink   base;
+  bool        pop_last; // If false, the last sink will be left on the stack instead of being popped
   Vector      stack[1];
   void*       data;
   void*       global;   // global across stack frames, for user access
