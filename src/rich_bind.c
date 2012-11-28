@@ -49,6 +49,7 @@ rich_Sink* rich_bind(rich_Schema* schema, void* to) {
   BoundSink* sink = v_malloc(sizeof(BoundSink));
   sink->base._impl = &bound_sink_impl;
   sink->schema = schema;
+  memset(to, 0, call(schema, data_size));
   TRY {
     rich_reactor_init(sink->reactor, sizeof(rich_Frame));
     rich_schema_push(sink->reactor, schema, to);
@@ -63,6 +64,7 @@ void rich_rebind(rich_Sink* _self, void* to) {
   BoundSink* self = (BoundSink*)_self;
   rich_reactor_reset(self->reactor);
   rich_schema_push(self->reactor, self->schema, to);
+  memset(to, 0, call(self->schema, data_size));
 }
 
 static void bound_sink_close(void* _self) {
@@ -470,7 +472,6 @@ static void struct_sink(void* _self, rich_Reactor* r, rich_Atom atom, void* data
   void* to = frame->to;
   if (frame->udata == 0) {
     if (atom != RICH_MAP) RAISE(MALFORMED);
-    memset(to, 0, self->data_size);
     frame->udata = (void*)1;
   } else if (atom == RICH_ENDMAP) {
     rich_reactor_pop(r);
@@ -575,7 +576,6 @@ static void tuple_sink(void* _self, rich_Reactor* r, rich_Atom atom, void* atom_
   if (*counter == 0) {
     if (atom != RICH_ARRAY) RAISE(MALFORMED);
     *counter = 1;
-    memset(to, 0, self->data_size);
   } else if (atom == RICH_ENDARRAY) {
     rich_reactor_pop(r);
   } else {
