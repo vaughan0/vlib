@@ -39,7 +39,7 @@ static int buf_input_get(void* _self) {
   if (!buffer_avail_read(self->buf)) {
     buffer_fill(self->buf, self->in);
     if (!buffer_avail_read(self->buf)) {
-      return VERR_EOF;
+      return -1;
     }
   }
   return self->buf->data[self->buf->read++];
