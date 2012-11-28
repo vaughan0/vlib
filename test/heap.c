@@ -26,7 +26,7 @@ static int iget(Heap* h, HeapRef ref) {
   return *(int*)heap_get(h, ref);
 }
 
-int heap_basic() {
+static int heap_basic() {
   Heap h;
   iheap_init(&h);
 
@@ -50,7 +50,7 @@ int heap_basic() {
   return 0;
 }
 
-int heap_refs() {
+static int heap_refs() {
   Heap h;
   iheap_init(&h);
 

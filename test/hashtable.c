@@ -34,7 +34,7 @@ static void hremove(Hashtable* h, const char* key) {
   free(oldkey);
 }
 
-int hashtable_basic() {
+static int hashtable_basic() {
   Hashtable h;
   hinit(&h);
 

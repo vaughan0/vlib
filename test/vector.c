@@ -2,7 +2,7 @@
 #include <vlib/test.h>
 #include <vlib/vector.h>
 
-int vector_basic() {
+static int vector_basic() {
   Vector v;
   vector_init(&v, sizeof(int), 1);
   for (int i = 0; i < 10; i++) {
