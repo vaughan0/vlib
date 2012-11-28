@@ -11,6 +11,37 @@ void rich_dump(rich_Schema* schema, void* from, rich_Sink* to) {
   call(schema, dump_value, from, to);
 }
 
+data(BoundSource) {
+  rich_Source   base;
+  rich_Schema*  schema;
+  void*         from;
+};
+
+static rich_Source_Impl bound_source_impl;
+
+rich_Source* rich_schema_source(rich_Schema* schema, void* from) {
+  BoundSource* self = v_malloc(sizeof(BoundSource));
+  self->base._impl = &bound_source_impl;
+  self->schema = schema;
+  self->from = from;
+  return (rich_Source*)self;
+}
+
+static void bound_read_value(void* _self, rich_Sink* to) {
+  BoundSource* self = _self;
+  rich_dump(self->schema, self->from, to);
+}
+static void bound_source_close(void* _self) {
+  BoundSource* self = _self;
+  rich_schema_close(self->schema);
+  free(self);
+}
+
+static rich_Source_Impl bound_source_impl = {
+  .read_value = bound_read_value,
+  .close = bound_source_close,
+};
+
 data(BoundSink) {
   rich_Sink     base;
   rich_Schema*  schema;
@@ -39,7 +70,7 @@ void rich_rebind(rich_Sink* _self, void* to) {
   rich_schema_push(self->reactor, self->schema, to);
 }
 
-static void bound_close(void* _self) {
+static void bound_sink_close(void* _self) {
   BoundSink* self = _self;
   rich_reactor_close(self->reactor);
   free(self);
@@ -51,7 +82,7 @@ static void bound_sink(void* _self, rich_Atom atom, void* atom_data) {
 
 static rich_Sink_Impl bound_sink_impl = {
   .sink = bound_sink,
-  .close = bound_close,
+  .close = bound_sink_close,
 };
 
 /* bool */
