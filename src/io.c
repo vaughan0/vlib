@@ -125,7 +125,7 @@ static int string_input_get(void* _self) {
   if (self->offset < self->size) {
     return self->src[self->offset++];
   }
-  return VERR_EOF;
+  return -1;
 }
 
 static void string_input_unget(void* _self) {
@@ -360,7 +360,7 @@ static size_t file_input_read(void* _self, char* dst, size_t n) {
 static int file_input_get(void* _self) {
   FileInput* self = _self;
   int c = fgetc(self->file);
-  return (c == EOF) ? VERR_EOF : c;
+  return (c == EOF) ? -1 : c;
 }
 
 static bool file_input_eof(void* _self) {
@@ -429,7 +429,7 @@ static size_t null_input_read(void* self, char* dst, size_t n) {
   return 0;
 }
 static int null_input_get(void* self) {
-  return VERR_EOF;
+  return -1;
 }
 static void null_input_unget(void* self) {}
 static void null_input_close(void* self) {}
