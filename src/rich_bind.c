@@ -31,15 +31,10 @@ static void bound_read_value(void* _self, rich_Sink* to) {
   BoundSource* self = _self;
   rich_dump(self->schema, self->from, to);
 }
-static void bound_source_close(void* _self) {
-  BoundSource* self = _self;
-  rich_schema_close(self->schema);
-  free(self);
-}
 
 static rich_Source_Impl bound_source_impl = {
   .read_value = bound_read_value,
-  .close = bound_source_close,
+  .close = free,
 };
 
 data(BoundSink) {
