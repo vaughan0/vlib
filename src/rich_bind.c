@@ -84,7 +84,7 @@ static void int_sink(void* _self, rich_Reactor* r, rich_Atom atom, void* data) {
   if (atom == RICH_INT) {
     *to = *(int*)data;
   } else if (atom == RICH_FLOAT) {
-    *to = (int)(*(float*)data);
+    *to = (int)(*(double*)data);
   } else RAISE(MALFORMED);
   rich_reactor_pop(r);
 }
