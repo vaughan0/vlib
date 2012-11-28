@@ -9,3 +9,4 @@ SUITE(hashtable);
 SUITE(llist);
 SUITE(gqi);
 SUITE(io);
+SUITE(error);

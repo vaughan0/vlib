@@ -3,6 +3,7 @@
 #include <stdarg.h>
 
 #include <vlib/test.h>
+#include <vlib/error.h>
 
 static unsigned stat_total;
 static unsigned stat_passed;
@@ -21,7 +22,15 @@ void test_suite(const char* name, Test tests[]) {
   for (unsigned i = 0; tests[i].name; i++) {
     stat_total++;
     printf("  %s... ", tests[i].name);
-    int r = tests[i].code();
+
+    int r;
+    TRY {
+      r = tests[i].code();
+    } CATCH(err) {
+      r = -1;
+      snprintf(errbuf, sizeof(errbuf), "exception: %s", verr_msg(err));
+    } ETRY
+
     if (r) {
       printf("FAIL: %s\n", errbuf);
     } else {
