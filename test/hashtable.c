@@ -9,12 +9,12 @@ static void hinit(Hashtable* h) {
   hashtable_init7(h, hasher_fnv64str, equaler_str, sizeof(char*), sizeof(int), 1, 0.5);
 }
 static void hclose(Hashtable* h) {
-  HT_Iter iter;
-  hashtable_iter(h, &iter);
-  char** key;
-  while ( (key = hashtable_next(&iter, NULL)) != NULL ) {
+  int free_key(void* _key, void* val) {
+    char** key = _key;
     free(*key);
+    return HT_CONTINUE;
   }
+  hashtable_iter(h, free_key);
   hashtable_close(h);
 }
 static void hinsert(Hashtable* h, const char* _key, int val) {

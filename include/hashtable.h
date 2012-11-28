@@ -48,21 +48,15 @@ void* hashtable_insert(Hashtable* ht, const void* key);
 // If oldkey is not NULL, then it will be filled with the old key data.
 void hashtable_remove(Hashtable* ht, const void* key, void* oldkey);
 
-/* Iteration */
-// TODO: replace with callback-style iteration (see llist iter)
+/* Iteration (see llist.h for how this works) */
 
-data(HT_Iter) {
-  Hashtable*  ht;
-  HT_Bucket*  bucket;
-  unsigned    index;
+void  hashtable_iter(Hashtable* ht, int (*callback)(void* key, void* data));
+
+enum {
+  HT_CONTINUE = 0,
+  HT_BREAK    = 1,
+  HT_REMOVE   = 2,
 };
-
-// Initializes an iterator
-void hashtable_iter(Hashtable* ht, HT_Iter* iter);
-
-// Returns the next key from the iterator, or NULL.
-// If data is not NULL then it will be set to the associated data pointer.
-void* hashtable_next(HT_Iter* iter, void** data);
 
 /* Builtin hasher/equaler functions */
 

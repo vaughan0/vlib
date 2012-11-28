@@ -349,13 +349,13 @@ static void memoize_close(void* _self) {
   GQI_Memoize* self = _self;
   gqi_release(self->backend);
 
-  HT_Iter iter;
-  hashtable_iter(&self->ht, &iter);
-  GQI_String *data, *key;
-  while ( (key = hashtable_next(&iter, (void**)&data)) != NULL ) {
+  int free_entry(void* _key, void* _val) {
+    GQI_String *key = _key, *val = _val;
     gqis_release(key);
-    gqis_release(data);
+    gqis_release(val);
+    return HT_CONTINUE;
   }
+  hashtable_iter(&self->ht, free_entry);
 
   hashtable_close(&self->ht);
   free(self);

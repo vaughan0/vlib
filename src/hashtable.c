@@ -121,22 +121,22 @@ void hashtable_remove(Hashtable* ht, const void* key, void* oldkey) {
 
 /* Iteration */
 
-void hashtable_iter(Hashtable* ht, HT_Iter* iter) {
-  iter->ht = ht;
-  iter->bucket = NULL;
-  iter->index = 0;
-}
-
-void* hashtable_next(HT_Iter* iter, void** data) {
-  while (!iter->bucket) {
-    if (iter->index == iter->ht->_cap)
-      return NULL;
-    iter->bucket = iter->ht->_buckets[iter->index++];
+void hashtable_iter(Hashtable* ht, int (*callback)(void* key, void* data)) {
+  for (unsigned index = 0; index < ht->_cap; index++) {
+    HT_Bucket** next;
+    for (HT_Bucket** bptr = &ht->_buckets[index]; *bptr; bptr = next) {
+      HT_Bucket* bucket = *bptr;
+      next = &bucket->next;
+      int r = callback(bucket->data, bucket->data + ht->keysz);
+      if (r & HT_REMOVE) {
+        *bptr = *next;
+        free(bucket);
+      }
+      if (r & HT_BREAK) {
+        return;
+      }
+    }
   }
-  if (data) *data = iter->bucket->data + iter->ht->keysz;
-  void* key = iter->bucket->data;
-  iter->bucket = iter->bucket->next;
-  return key;
 }
 
 /* Hashers */

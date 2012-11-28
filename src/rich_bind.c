@@ -352,14 +352,13 @@ static void hashtable_dump(void* _self, void* from, rich_Sink* to) {
   Hashtable* ht = from;
   call(to, sink, RICH_MAP, NULL);
 
-  HT_Iter iter;
-  hashtable_iter(ht, &iter);
-  void *_key, *value;
-  while ( (_key = hashtable_next(&iter, &value)) != NULL ) {
+  int dump_entry(void* _key, void* value) {
     rich_String* key = _key;
     call(to, sink, RICH_KEY, key);
     call(self->of, dump_value, value, to);
+    return HT_CONTINUE;
   }
+  hashtable_iter(ht, dump_entry);
 
   call(to, sink, RICH_ENDMAP, NULL);
 }
