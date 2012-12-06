@@ -47,11 +47,11 @@ const char* verr_msg(error_t err) {
   ErrorProvider* ep = *(ErrorProvider**)ptr;
   const char* msg = ep->get_msg(err);
   if (!msg) goto NoDetails;
-  snprintf(buf, sizeof(buf), "[%s:%x] %s", ep->name, err, msg);
+  snprintf(buf, sizeof(buf), "[%x:%s] %s", err, ep->name, msg);
   return buf;
 
 NoDetails:
-  snprintf(buf, sizeof(buf), "[unknown:%x]", err);
+  snprintf(buf, sizeof(buf), "[%x:unknown]", err);
   return buf;
 }
 
