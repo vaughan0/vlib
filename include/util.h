@@ -1,8 +1,10 @@
 #ifndef UTIL_H_5DA4072982801B
 #define UTIL_H_5DA4072982801B
 
-#define MIN(a,b) ((a) < (b) ? (a) : (b))
-#define MAX(a,b) ((a) < (b) ? (b) : (a))
+#define MIN(a,b) ({ typeof(a) _a = (a); typeof(b) _b = (b); _a < _b ? _a : _b; })
+#define MAX(a,b) ({ typeof(a) _a = (a); typeof(b) _b = (b); _a < _b ? _b : _a; })
+
+#define SWAP(a,b) ({ typeof(a) _tmp = (a); (a) = (b); (b) = _tmp; })
 
 #ifndef container_of
 // Credit to the linux kernel for this handy macro
