@@ -1,7 +1,6 @@
 #ifndef VECTOR_H_B37F00869202FC
 #define VECTOR_H_B37F00869202FC
 
-#include <stdio.h>
 #include <assert.h>
 #include <stddef.h>
 
