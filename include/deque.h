@@ -19,12 +19,11 @@ void deque_close(Deque* d);
 size_t deque_size(Deque* d);
 
 void* deque_pushfront(Deque* d);
-void* deque_pushback(Deque* d);
-
 void* deque_front(Deque* d);
-void* deque_back(Deque* d);
-
 void  deque_popfront(Deque* d);
+
+void* deque_pushback(Deque* d);
+void* deque_back(Deque* d);
 void  deque_popback(Deque* d);
 
 #endif /* DEQUE_H_95CF9713056D46 */
