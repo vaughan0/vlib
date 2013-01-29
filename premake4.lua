@@ -5,7 +5,7 @@ solution 'vlib'
   -- Global config
 
   language 'C'
-  buildoptions { '-std=gnu99', '-fPIC', '-Wno-trampolines' }
+  buildoptions { '-std=gnu99', '-fPIC', '-Wno-trampolines', '-Werror' }
   includedirs '.'
 
   links { 'm' }
