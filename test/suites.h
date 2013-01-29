@@ -7,6 +7,8 @@ SUITE(vector);
 SUITE(heap);
 SUITE(hashtable);
 SUITE(llist);
+SUITE(deque);
+
 SUITE(gqi);
 SUITE(io);
 SUITE(error);
