@@ -38,7 +38,7 @@ static inline void check_cap(Deque* d) {
     if (d->_frontr > d->_backw) {
       // Shift elements to the end of the new memory
       int newfront = d->_frontr + d->_cap;
-      memcpy(d->_data + d->_frontr, d->_data + newfront, d->_cap - d->_frontr);
+      memcpy(d->_data + newfront * d->elemsz, d->_data + d->_frontr * d->elemsz, (d->_cap - d->_frontr) * d->elemsz);
       d->_frontr = newfront;
     }
     d->_cap = newcap;
