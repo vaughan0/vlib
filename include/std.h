@@ -14,5 +14,7 @@
   typedef struct name name; \
   struct name 
 
+#define EXPORT __attribute__ ((visibility ("default")))
+
 #endif /* STD_H_95ECC92A271C4F */
 
