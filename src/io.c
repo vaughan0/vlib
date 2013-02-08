@@ -210,6 +210,7 @@ static void string_output_put(void* _self, char ch) {
   if (self->offset == self->last->size) {
     make_piece(self);
   }
+  self->last->data[self->offset++] = ch;
 }
 
 static void string_output_flush(void* self) { }

@@ -27,6 +27,19 @@ static int string_io_write() {
   call(out, close, true);
   return 0;
 };
+static int string_io_put() {
+  Output* out = string_output_new(1);
+  io_put(out, 't');
+  io_put(out, 'e');
+  io_put(out, 's');
+  io_put(out, 't');
+  size_t sz;
+  const char* result = string_output_data(out, &sz);
+  assertEqual(sz, 4);
+  assertEqual(strcmp(result, "test"), 0);
+  call(out, close, true);
+  return 0;
+}
 static int string_io_reset() {
   Output* out = string_output_new(1);
 
@@ -99,6 +112,7 @@ static int limited_input_unget() {
 
 VLIB_SUITE(io) = {
   VLIB_TEST(string_io_write),
+  VLIB_TEST(string_io_put),
   VLIB_TEST(string_io_read),
   VLIB_TEST(string_io_reset),
   VLIB_TEST(limited_input),
