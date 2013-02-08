@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <errno.h>
 
 #include <vlib/std.h>
 
@@ -39,13 +40,16 @@ void verr_cleanup() __attribute__((destructor));
 enum {
   VERR_PGENERAL,
   VERR_PIO,
+  VERR_PNET,
 };
 
 // General error codes
 enum {
-  VERR_ARGERR     = VERR_MAKE(VERR_PGENERAL, 1),
-  VERR_MALFORMED  = VERR_MAKE(VERR_PGENERAL, 2),
-  VERR_NOMEM      = VERR_MAKE(VERR_PGENERAL, 3),
+  VERR_ARGERR     = VERR_MAKE(VERR_PGENERAL, 1),  // invalid argument
+  VERR_MALFORMED  = VERR_MAKE(VERR_PGENERAL, 2),  // malformed data
+  VERR_NOMEM      = VERR_MAKE(VERR_PGENERAL, 3),  // out of memory
+  VERR_ACCESS     = VERR_MAKE(VERR_PGENERAL, 4),  // permission denied
+  VERR_SYSTEM     = VERR_MAKE(VERR_PGENERAL, 5),  // system error (generally from a system call)
 };
 
 // IO error codes
@@ -54,10 +58,17 @@ enum {
   VERR_EOF  = VERR_MAKE(VERR_PIO, 2),
 };
 
+// Returns the most suitable error code for the given system error number
+error_t verr_system(int eno);
+
 /* Exception handling */
 
 void    verr_try(void (*action)(), void (*handle)(error_t error), void (*cleanup)());
 void    verr_raise(error_t error);
+
+static inline void verr_raise_system() {
+  verr_raise(verr_system(errno));
+}
 
 #define RAISE(verr) verr_raise(VERR_##verr)
 

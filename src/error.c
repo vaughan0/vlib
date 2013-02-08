@@ -10,6 +10,7 @@
 #include <vlib/hashtable.h>
 #include <vlib/vector.h>
 
+static bool initialized = false;
 static Hashtable providers[1];
 static ErrorProvider general_provider, io_provider;
 
@@ -20,10 +21,12 @@ data(TryFrame) {
 };
 
 void verr_init() {
+  if (initialized) return;
+  initialized = true;
+
   hashtable_init(providers, hasher_fnv64, memcmp, sizeof(int), sizeof(ErrorProvider*));
   verr_register(VERR_PGENERAL, &general_provider);
   verr_register(VERR_PIO, &io_provider);
-
   vector_init(try_stack, sizeof(TryFrame), 3);
 }
 void verr_cleanup() {
@@ -32,6 +35,7 @@ void verr_cleanup() {
 }
 
 void verr_register(int provider, ErrorProvider* impl) {
+  verr_init();
   if (!hashtable_get(providers, &provider)) {
     *(ErrorProvider**)hashtable_insert(providers, &provider) = impl;
   }
@@ -59,9 +63,11 @@ NoDetails:
 
 static const char* general_get_msg(error_t err) {
   switch (err) {
-    case VERR_ARGERR:     return "invalid argument";
-    case VERR_MALFORMED:  return "malformed data";
-    case VERR_NOMEM:      return "out of memory";
+  case VERR_ARGERR:     return "invalid argument";
+  case VERR_MALFORMED:  return "malformed data";
+  case VERR_NOMEM:      return "out of memory";
+  case VERR_ACCESS:     return "permission denied";
+  case VERR_SYSTEM:     return "system error";
   };
   return NULL;
 }
@@ -75,8 +81,8 @@ static ErrorProvider general_provider = {
 
 static const char* io_get_msg(error_t err) {
   switch (err) {
-    case VERR_IO:   return "general IO error";
-    case VERR_EOF:  return "end-of-file";
+  case VERR_IO:   return "general IO error";
+  case VERR_EOF:  return "end-of-file";
   }
   return NULL;
 }
@@ -85,6 +91,23 @@ static ErrorProvider io_provider = {
   .name = "io",
   .get_msg = io_get_msg,
 };
+
+error_t verr_system(int eno) {
+  switch (eno) {
+  case EACCES:
+    return VERR_ACCESS;
+  case ENOBUFS:
+  case ENOMEM:
+    return VERR_NOMEM;
+  case EFBIG:
+  case EIO:
+  case ENOSPC:
+  case EPIPE:
+    return VERR_IO;
+  default:
+    return VERR_SYSTEM;
+  }
+}
 
 /* Exceptions */
 
