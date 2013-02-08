@@ -48,6 +48,12 @@ void        string_output_reset(Output* string_output);
 Input*      file_input_new(FILE* f);
 Output*     file_output_new(FILE* f);
 
+Input*      fd_input_new(int fd);
+Output*     fd_output_new(int fd);
+
+// If close is true, the associated Input/Output stream will close the underlying file descriptor.
+void        fd_io_setclose(void* stream, bool close); 
+
 Input*      limited_input_new(Input* in, size_t limit);
 
 extern Input  null_input;   // Always returns EOF

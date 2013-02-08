@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <assert.h>
 
+#include <unistd.h>
+
 #include <vlib/util.h>
 #include <vlib/io.h>
 #include <vlib/vector.h>
@@ -350,24 +352,20 @@ Input* file_input_new(FILE* file) {
   self->file = file;
   return &self->base;
 }
-
 static size_t file_input_read(void* _self, char* dst, size_t n) {
   FileInput* self = _self;
   if (feof(self->file)) return 0;
   return fread(dst, 1, n, self->file);
 }
-
 static int file_input_get(void* _self) {
   FileInput* self = _self;
   int c = fgetc(self->file);
   return (c == EOF) ? -1 : c;
 }
-
 static bool file_input_eof(void* _self) {
   FileInput* self = _self;
   return feof(self->file) != 0;
 }
-
 static void file_input_close(void* _self) {
   FileInput* self = _self;
   fclose(self->file);
@@ -394,22 +392,18 @@ Output* file_output_new(FILE* file) {
   self->file = file;
   return &self->base;
 }
-
 static void file_output_write(void* _self, const char* src, size_t n) {
   FileOutput* self = _self;
   if (fwrite(src, 1, n, self->file) != n) RAISE(IO);
 }
-
 static void file_output_put(void* _self, char ch) {
   FileOutput* self = _self;
   if (fputc((int)ch, self->file) == EOF) verr_raise(VERR_IO);
 }
-
 static void file_output_flush(void* _self) {
   FileOutput* self = _self;
   if (fflush(self->file)) verr_raise(VERR_IO);
 }
-
 static void file_output_close(void* _self) {
   FileOutput* self = _self;
   fclose(self->file);
@@ -422,6 +416,93 @@ static Output_Impl file_output_impl = {
   .flush = file_output_flush,
   .close = file_output_close,
 };
+
+/* File descriptor wrappers */
+
+data(FDInput) {
+  Input base;
+  bool  own;
+  int   fd;
+  bool  eof;
+};
+
+static Input_Impl fd_input_impl;
+
+Input* fd_input_new(int fd) {
+  FDInput* self = v_malloc(sizeof(FDInput));
+  self->base._impl = &fd_input_impl;
+  self->own = true;
+  self->fd = fd;
+  self->eof = false;
+  return &self->base;
+}
+
+static size_t fd_input_read(void* _self, char* dst, size_t n) {
+  FDInput* self = _self;
+  if (self->eof) return 0;
+  ssize_t nread = read(self->fd, dst, n);
+  if (nread == -1) verr_raise(VERR_SYSTEM);
+  if (nread == 0) self->eof = true;
+  return nread;
+}
+static bool fd_input_eof(void* _self) {
+  FDInput* self = _self;
+  return self->eof;
+}
+static void fd_input_close(void* _self) {
+  FDInput* self = _self;
+  if (self->own) close(self->fd);
+  free(self);
+}
+
+static Input_Impl fd_input_impl = {
+  .read = fd_input_read,
+  .eof = fd_input_eof,
+  .close = fd_input_close,
+};
+
+data(FDOutput) {
+  Output  base;
+  bool    own;
+  int     fd;
+};
+
+static Output_Impl fd_output_impl;
+
+Output* fd_output_new(int fd) {
+  FDOutput* self = v_malloc(sizeof(FDOutput));
+  self->base._impl = &fd_output_impl;
+  self->own = false;
+  self->fd = fd;
+  return &self->base;
+}
+
+static void fd_output_write(void* _self, const char* src, size_t n) {
+  FDOutput* self = _self;
+  while (n) {
+    ssize_t written = write(self->fd, src, n);
+    if (written == -1) verr_raise_system();
+    n -= written;
+    src += written;
+  }
+}
+static void fd_output_flush(void* _self) { /* unbuffered */ }
+static void fd_output_close(void* _self) {
+  FDOutput* self = _self;
+  if (self->own) close(self->fd);
+  free(self);
+}
+
+static Output_Impl fd_output_impl = {
+  .write = fd_output_write,
+  .flush = fd_output_flush,
+  .close = fd_output_close,
+};
+
+void fd_io_setclose(void* _stream, bool close) {
+  FDOutput* stream = _stream; // FDOutput and FDInput have the same structure for this function
+  stream->own = close;
+}
 
 /* Null IO */
 
