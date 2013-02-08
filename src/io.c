@@ -312,6 +312,11 @@ static int limited_get(void* _self) {
     return -1;
   }
 }
+static void limited_unget(void* _self) {
+  LimitedInput* self = _self;
+  self->read--;
+  io_unget(self->in);
+}
 static bool limited_eof(void* _self) {
   LimitedInput* self = _self;
   return (self->read == self->limit) || io_eof(self->in);
@@ -325,6 +330,7 @@ static void limited_close(void* _self) {
 static Input_Impl limited_impl = {
   .read = limited_read,
   .get = limited_get,
+  .unget = limited_unget,
   .eof = limited_eof,
   .close = limited_close,
 };
