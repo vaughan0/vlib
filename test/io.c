@@ -28,6 +28,25 @@ static int string_io_write() {
   return 0;
 };
 
+static int string_io_reset() {
+  Output* out = string_output_new(1);
+
+  write_cstr(out, "Hello ");
+  write_cstr(out, "World!");
+  string_output_reset(out);
+  write_cstr(out, "Correct");
+  write_cstr(out, " Result");
+
+  const char* expect = "Correct Result";
+  size_t sz;
+  const char* result = string_output_data(out, &sz);
+  assertEqual(strlen(expect), sz);
+  assertEqual(strcmp(result, expect), 0);
+
+  call(out, close);
+  return 0;
+}
+
 static int string_io_read() {
   char src[] = "hello\0WORLD";
   Input* in = string_input_new(src, sizeof(src));
@@ -48,6 +67,7 @@ static int string_io_read() {
 VLIB_SUITE(io) = {
   VLIB_TEST(string_io_write),
   VLIB_TEST(string_io_read),
+  VLIB_TEST(string_io_reset),
   VLIB_END,
 };
 
