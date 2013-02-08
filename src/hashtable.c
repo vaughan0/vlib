@@ -96,6 +96,13 @@ void* hashtable_get(Hashtable* ht, const void* key) {
   return b ? (b->data + ht->keysz) : NULL;
 }
 
+void* hashtable_getkey(Hashtable* ht, const void* key, void** keydst) {
+  HT_Bucket* b = lookup(ht, key, NULL);
+  if (!b) return NULL;
+  *keydst = b->data;
+  return b->data + ht->keysz;
+}
+
 void* hashtable_insert(Hashtable* ht, const void* key) {
   assert(hashtable_get(ht, key) == NULL);
   check_loadfactor(ht);

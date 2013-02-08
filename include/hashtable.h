@@ -40,6 +40,9 @@ void hashtable_close(Hashtable* ht);
 // Returns the pointer to the value identified by key, or NULL if no such value was found.
 void* hashtable_get(Hashtable* ht, const void* key);
 
+// Like hashtable_get, but also fills in keydst with a pointer to the key.
+void* hashtable_getkey(Hashtable* ht, const void* key, void** keydst);
+
 // Inserts a new value into the hashtable and returns it's pointer.
 // Values may not be inserted with the same key more than once.
 void* hashtable_insert(Hashtable* ht, const void* key);
