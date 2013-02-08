@@ -10,6 +10,10 @@
 #include <vlib/io.h>
 #include <vlib/vector.h>
 
+static void close_free(void* _self, bool close_wrapped) {
+  free(_self);
+}
+
 /* Base functions */
 
 size_t io_read(Input* in, char* dst, size_t n) {
@@ -121,7 +125,6 @@ static size_t string_input_read(void* _self, char* dst, size_t n) {
   self->offset += n;
   return n;
 }
-
 static int string_input_get(void* _self) {
   StringInput* self = _self;
   if (self->offset < self->size) {
@@ -129,13 +132,11 @@ static int string_input_get(void* _self) {
   }
   return -1;
 }
-
 static void string_input_unget(void* _self) {
   StringInput* self = _self;
   assert(self->offset > 0);
   self->offset--;
 }
-
 static bool string_input_eof(void* _self) {
   StringInput* self = _self;
   return self->offset == self->size;
@@ -146,7 +147,7 @@ static Input_Impl string_input_impl = {
   .get = string_input_get,
   .unget = string_input_unget,
   .eof = string_input_eof,
-  .close = free,
+  .close = close_free,
 };
 
 /* StringOutput */
@@ -204,7 +205,6 @@ static void string_output_write(void* _self, const char* src, size_t n) {
     string_output_write(self, src + fill, n - fill);
   }
 }
-
 static void string_output_put(void* _self, char ch) {
   StringOutput* self = _self;
   if (self->offset == self->last->size) {
@@ -214,7 +214,7 @@ static void string_output_put(void* _self, char ch) {
 
 static void string_output_flush(void* self) { }
 
-static void string_output_close(void* _self) {
+static void string_output_close(void* _self, bool close_wrapped) {
   StringOutput* self = _self;
   Piece *p, *tmp;
   for (p = self->first; p; p = tmp) {
@@ -321,9 +321,9 @@ static bool limited_eof(void* _self) {
   LimitedInput* self = _self;
   return (self->read == self->limit) || io_eof(self->in);
 }
-static void limited_close(void* _self) {
+static void limited_close(void* _self, bool close_wrapped) {
   LimitedInput* self = _self;
-  call(self->in, close);
+  if (close_wrapped) call(self->in, close, true);
   free(self);
 }
 
@@ -372,9 +372,9 @@ static bool file_input_eof(void* _self) {
   FileInput* self = _self;
   return feof(self->file) != 0;
 }
-static void file_input_close(void* _self) {
+static void file_input_close(void* _self, bool close_wrapped) {
   FileInput* self = _self;
-  fclose(self->file);
+  if (close_wrapped) fclose(self->file);
   free(self);
 }
 
@@ -410,9 +410,9 @@ static void file_output_flush(void* _self) {
   FileOutput* self = _self;
   if (fflush(self->file)) verr_raise(VERR_IO);
 }
-static void file_output_close(void* _self) {
+static void file_output_close(void* _self, bool close_wrapped) {
   FileOutput* self = _self;
-  fclose(self->file);
+  if (close_wrapped) fclose(self->file);
   free(self);
 }
 
@@ -427,7 +427,6 @@ static Output_Impl file_output_impl = {
 
 data(FDInput) {
   Input base;
-  bool  own;
   int   fd;
   bool  eof;
 };
@@ -437,7 +436,6 @@ static Input_Impl fd_input_impl;
 Input* fd_input_new(int fd) {
   FDInput* self = v_malloc(sizeof(FDInput));
   self->base._impl = &fd_input_impl;
-  self->own = true;
   self->fd = fd;
   self->eof = false;
   return &self->base;
@@ -455,9 +453,9 @@ static bool fd_input_eof(void* _self) {
   FDInput* self = _self;
   return self->eof;
 }
-static void fd_input_close(void* _self) {
+static void fd_input_close(void* _self, bool close_wrapped) {
   FDInput* self = _self;
-  if (self->own) close(self->fd);
+  if (close_wrapped) close(self->fd);
   free(self);
 }
 
@@ -469,7 +467,6 @@ static Input_Impl fd_input_impl = {
 
 data(FDOutput) {
   Output  base;
-  bool    own;
   int     fd;
 };
 
@@ -478,7 +475,6 @@ static Output_Impl fd_output_impl;
 Output* fd_output_new(int fd) {
   FDOutput* self = v_malloc(sizeof(FDOutput));
   self->base._impl = &fd_output_impl;
-  self->own = false;
   self->fd = fd;
   return &self->base;
 }
@@ -493,9 +489,9 @@ static void fd_output_write(void* _self, const char* src, size_t n) {
   }
 }
 static void fd_output_flush(void* _self) { /* unbuffered */ }
-static void fd_output_close(void* _self) {
+static void fd_output_close(void* _self, bool close_wrapped) {
   FDOutput* self = _self;
-  if (self->own) close(self->fd);
+  if (close_wrapped) close(self->fd);
   free(self);
 }
 
@@ -504,11 +500,6 @@ static Output_Impl fd_output_impl = {
   .flush = fd_output_flush,
   .close = fd_output_close,
 };
-
-void fd_io_setclose(void* _stream, bool close) {
-  FDOutput* stream = _stream; // FDOutput and FDInput have the same structure for this function
-  stream->own = close;
-}
 
 /* Null IO */
 
@@ -519,7 +510,7 @@ static int null_input_get(void* self) {
   return -1;
 }
 static void null_input_unget(void* self) {}
-static void null_input_close(void* self) {}
+static void null_input_close(void* self, bool close_wrapped) {}
 static bool null_input_eof(void* self) {return true;}
 
 static Input_Impl null_input_impl = {
@@ -537,7 +528,7 @@ Input null_input = {
 static void null_output_write(void* self, const char* src, size_t n) {}
 static void null_output_put(void* self, char ch) {}
 static void null_output_flush(void* self) {}
-static void null_output_close(void* self) {}
+static void null_output_close(void* self, bool close_wrapped) {}
 
 static Output_Impl null_output_impl = {
   .write = null_output_write,
@@ -560,7 +551,7 @@ static int zero_input_get(void* self) {
   return 0;
 }
 static void zero_input_unget(void* self) {}
-static void zero_input_close(void* self) {}
+static void zero_input_close(void* self, bool close_wrapped) {}
 static bool zero_input_eof(void* self) {return false;}
 
 static Input_Impl zero_input_impl = {

@@ -14,18 +14,16 @@ void* buf_input_new(Input* wrap, size_t buffer) {
   self->base._impl = &buf_input_impl;
   self->in = wrap;
   self->buf = buffer_new(buffer);
-  self->close_backend = true;
   return self;
 }
 
-static void buf_input_close(void* _self) {
+static void buf_input_close(void* _self, bool close_wrapped) {
   BufInput* self = _self;
   buffer_free(self->buf);
-  if (self->close_backend)
-    call(self->in, close);
+  if (close_wrapped)
+    call(self->in, close, true);
   free(self);
 }
-
 static size_t buf_input_read(void* _self, char* dst, size_t n) {
   BufInput* self = _self;
   if (buffer_avail_read(self->buf) == 0) {
@@ -33,7 +31,6 @@ static size_t buf_input_read(void* _self, char* dst, size_t n) {
   }
   return buffer_read(self->buf, dst, n);
 }
-
 static int buf_input_get(void* _self) {
   BufInput* self = _self;
   if (!buffer_avail_read(self->buf)) {
@@ -44,12 +41,10 @@ static int buf_input_get(void* _self) {
   }
   return self->buf->data[self->buf->read++];
 }
-
 static void buf_input_unget(void* _self) {
   BufInput* self = _self;
   self->buf->read--;
 }
-
 static bool buf_input_eof(void* _self) {
   BufInput* self = _self;
   if (buffer_avail_read(self->buf)) {
@@ -75,7 +70,6 @@ void* buf_output_new(Output* wrap, size_t buffer) {
   self->base._impl = &buf_output_impl;
   self->out = wrap;
   self->buf = buffer_new(buffer);
-  self->close_backend = true;
   return self;
 }
 
@@ -88,7 +82,6 @@ static void buf_output_write(void* _self, const char* src, size_t n) {
     call(self->out, write, src, n);
   }
 }
-
 static void buf_output_put(void* _self, char ch) {
   BufOutput* self = _self;
   if (buffer_avail_write(self->buf) == 0) {
@@ -96,19 +89,17 @@ static void buf_output_put(void* _self, char ch) {
   }
   self->buf->data[self->buf->write++] = ch;
 }
-
 static void buf_output_flush(void* _self) {
   BufOutput* self = _self;
   buffer_flush(self->buf, self->out);
   call(self->out, flush);
 }
-
-static void buf_output_close(void* _self) {
+static void buf_output_close(void* _self, bool close_wrapped) {
   BufOutput* self = _self;
   buf_output_flush(self);
   buffer_free(self->buf);
-  if (self->close_backend)
-    call(self->out, close);
+  if (close_wrapped)
+    call(self->out, close, true);
   free(self);
 }
 

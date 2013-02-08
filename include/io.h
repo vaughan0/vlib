@@ -13,14 +13,14 @@ interface(Input) {
   int     (*get)(void* self);
   void    (*unget)(void* self);
   bool    (*eof)(void* self);
-  void    (*close)(void* self);
+  void    (*close)(void* self, bool close_wrapped);
 };
 
 interface(Output) {
   void    (*write)(void* self, const char* src, size_t n);
   void    (*put)(void* self, char ch);
   void    (*flush)(void* self);
-  void    (*close)(void* self);
+  void    (*close)(void* self, bool close_wrapped);
 };
 
 size_t      io_read(Input* input, char* dst, size_t n);
@@ -50,9 +50,6 @@ Output*     file_output_new(FILE* f);
 
 Input*      fd_input_new(int fd);
 Output*     fd_output_new(int fd);
-
-// If close is true, the associated Input/Output stream will close the underlying file descriptor.
-void        fd_io_setclose(void* stream, bool close); 
 
 Input*      limited_input_new(Input* in, size_t limit);
 

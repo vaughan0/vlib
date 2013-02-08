@@ -21,7 +21,6 @@ data(BufInput) {
   Input     base;
   Input*    in;
   Buffer*   buf;
-  bool      close_backend;
 };
 
 void* buf_input_new(Input* wrap, size_t buffer);
@@ -30,7 +29,6 @@ data(BufOutput) {
   Output      base;
   Output*     out;
   Buffer*     buf;
-  bool        close_backend;
 };
 
 void* buf_output_new(Output* wrap, size_t buffer);
