@@ -35,7 +35,7 @@ void net_register_errors() {
 /* TCP */
 
 data(TCPListener) {
-  NetListener_Impl* _impl;
+  NetListener base;
   int socket;
 };
 
@@ -48,47 +48,84 @@ data(TCPConn) {
 
 static NetConn_Impl tcp_conn_impl;
 
-NetListener* net_listen_tcp(const char* addr, int port) {
-  TCPListener* self = v_malloc(sizeof(TCPListener));
-
-  // Lookup address
+// Performs a lookup given an address (node:service).
+static struct addrinfo* lookup(const char* addr, bool passive) {
+  // Split addr into node and service
+  const char *node, *service;
+  char* index = strchr(addr, ':');
+  char buf[256];
+  if (index) {
+    int nodelen = (int)(index - addr);
+    if (nodelen+1 > sizeof(buf)) RAISE(ARGUMENT);
+    node = buf;
+    memcpy(buf, addr, nodelen);
+    *index = 0;
+    service = index+1;
+  } else {
+    node = addr;
+    service = NULL;
+  }
+  if (node[0] == '*' && node[1] == 0)
+    node = NULL;
+  printf("node=%s service=%s\n", node, service);
+  // Perform the lookup
   struct addrinfo hints = {
     .ai_socktype = SOCK_STREAM,
+    .ai_flags = passive ? AI_PASSIVE : 0,
   };
-  struct addrinfo* lookup;
-  int r = getaddrinfo(addr, NULL, &hints, &lookup);
-  if (r) {
+  struct addrinfo* result;
+  int r = getaddrinfo(node, service, &hints, &result);
+  if (r) RAISE(NET_LOOKUP);
+  return result;
+}
 
-  }
+// Binds an IPv4 or IPv6 socket, depending on the lookup results
+static int bind_socket(struct addrinfo* lookup) {
+  int sock, r;
+  struct addrinfo* tofree = lookup;
+  do {
+    switch (lookup->ai_family) {
+    case AF_INET:
+    case AF_INET6:
+      goto Bind;
+    }
+    lookup = lookup->ai_next;
+    if (!lookup) return -1;
+  } while (true);
 
-  int sock = socket(AF_INET6, SOCK_STREAM, 0);
+Bind:
+  sock = socket(lookup->ai_family, SOCK_STREAM, 0);
   if (sock == -1) goto Error;
-
-  struct sockaddr_in6 bind_addr = {
-    .sin6_family = AF_INET6,
-    .sin6_port = htons(port),
-  };
-  memcpy(bind_addr.sin6_addr.s6_addr, addr, sizeof(addr));
-  r = bind(sock, (struct sockaddr*)&bind_addr, sizeof(bind_addr));
+  r = bind(sock, lookup->ai_addr, lookup->ai_addrlen);
   if (r == -1) goto Error;
-
-  r = listen(sock, 5);
-  if (r == -1) goto Error;
-
-  self->_impl = &tcp_listener_impl;
-  self->socket = sock;
-  return (NetListener*)self;
+  freeaddrinfo(tofree);
+  return sock;
 
 Error:
+  r = errno;
+  freeaddrinfo(tofree);
   if (sock != -1) close(sock);
-  free(self);
-  switch (errno) {
-  case EADDRINUSE:
-    verr_raise(VERR_NET_INUSE);
-  default:
+  if (r == EADDRINUSE) {
+    RAISE(NET_INUSE);
+  } else {
+    verr_raise(verr_system(r));
+  }
+  return 0;
+}
+
+NetListener* net_listen_tcp(const char* addr) {
+  struct addrinfo* result = lookup(addr, true);
+  int sock = bind_socket(result);
+  int r = listen(sock, 5);
+  if (r == -1) {
+    close(sock);
     verr_raise_system();
   }
-  return NULL; // keep the compiler happy
+
+  TCPListener* self = v_malloc(sizeof(TCPListener));
+  self->base._impl = &tcp_listener_impl;
+  self->socket = sock;
+  return &self->base;
 }
 
 static NetConn* tcp_accept(void* _self) {
