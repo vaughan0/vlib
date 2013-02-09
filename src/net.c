@@ -34,20 +34,6 @@ void net_register_errors() {
 
 /* TCP */
 
-data(TCPListener) {
-  NetListener base;
-  int socket;
-};
-
-static NetListener_Impl tcp_listener_impl;
-
-data(TCPConn) {
-  NetConn base;
-  int     fd;
-};
-
-static NetConn_Impl tcp_conn_impl;
-
 // Performs a lookup given an address (node:service).
 static struct addrinfo* lookup(const char* addr, bool passive) {
   // Split addr into node and service
@@ -78,60 +64,71 @@ static struct addrinfo* lookup(const char* addr, bool passive) {
   return result;
 }
 
-// Binds an IPv4 or IPv6 socket, depending on the lookup results
-static int bind_socket(struct addrinfo* lookup) {
-  int sock, r;
-  struct addrinfo* tofree = lookup;
-  do {
-    switch (lookup->ai_family) {
-    case AF_INET:
-    case AF_INET6:
-      goto Bind;
-    }
-    lookup = lookup->ai_next;
-    if (!lookup) {
-      freeaddrinfo(tofree);
-      RAISE(NET_LOOKUP);
-    }
-  } while (true);
+data(TCPConn) {
+  NetConn base;
+  int     fd;
+};
 
-Bind:
-  sock = socket(lookup->ai_family, SOCK_STREAM, 0);
-  if (sock == -1) goto Error;
-  int reuse = 1;
-  r = setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
-  if (r == -1) goto Error;
-  r = bind(sock, lookup->ai_addr, lookup->ai_addrlen);
-  if (r == -1) goto Error;
+static void tcp_conn_close(void* _self) {
+  TCPConn* self = _self;
+  unclosable_input_close(self->base.input);
+  unclosable_output_close(self->base.output);
+  close(self->fd);
+  free(self);
+}
+static NetConn_Impl tcp_conn_impl = {
+  .close = tcp_conn_close,
+};
 
-  freeaddrinfo(tofree);
-  return sock;
-
-Error:
-  r = errno;
-  freeaddrinfo(tofree);
-  if (sock != -1) close(sock);
-  if (r == EADDRINUSE) {
-    RAISE(NET_INUSE);
-  } else {
-    verr_raise(verr_system(r));
-  }
-  return 0;
+static NetConn* tcp_conn_new(int fd) {
+  TCPConn* self = v_malloc(sizeof(TCPConn));
+  self->base._impl = &tcp_conn_impl;
+  self->fd = fd;
+  return &self->base;
 }
 
-NetListener* net_listen_tcp(const char* addr) {
-  struct addrinfo* result = lookup(addr, true);
-  int sock = bind_socket(result);
-  int r = listen(sock, 5);
-  if (r == -1) {
-    close(sock);
-    verr_raise_system();
-  }
+data(TCPListener) {
+  NetListener base;
+  int socket;
+};
 
-  TCPListener* self = v_malloc(sizeof(TCPListener));
+static NetListener_Impl tcp_listener_impl;
+
+NetListener* net_listen_tcp(const char* addr) {
+  int eno;
+  struct addrinfo* result = lookup(addr, true);
+
+  // Create socket
+  int sock = socket(result->ai_family, SOCK_STREAM, 0);
+  if (sock == -1) goto Error;
+  // Set SO_REUSEADDR
+  int reuse = 1;
+  int r = setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
+  if (r == -1) goto Error;
+  // Bind
+  r = bind(sock, result->ai_addr, result->ai_addrlen);
+  if (r == -1) goto Error;
+
+  // Create TCPListener
+  freeaddrinfo(result);
+  TCPListener* self;
+  TRY {
+    self = v_malloc(sizeof(TCPListener));
+  } CATCH(err) {
+    close(sock);
+    verr_raise(err);
+  } ETRY
+
   self->base._impl = &tcp_listener_impl;
   self->socket = sock;
   return &self->base;
+
+Error:
+  eno = errno;
+  freeaddrinfo(result);
+  if (sock != -1) close(sock);
+  verr_raise(verr_system(eno));
+  return NULL;
 }
 
 static NetConn* tcp_accept(void* _self) {
@@ -150,12 +147,7 @@ static NetConn* tcp_accept(void* _self) {
     }
   }
 
-  conn->base._impl = &tcp_conn_impl;
-  conn->base.input = unclosable_input_new(fd_input_new(client, false));
-  conn->base.output = unclosable_output_new(fd_output_new(client, false));
-  conn->fd = client;
-
-  return (NetConn*)conn;
+  return tcp_conn_new(client);
 }
 static void tcp_close(void* _self) {
   TCPListener* self = _self;
@@ -168,14 +160,63 @@ static NetListener_Impl tcp_listener_impl = {
   .close = tcp_close,
 };
 
-static void tcp_conn_close(void* _self) {
-  TCPConn* self = _self;
-  unclosable_input_close(self->base.input);
-  unclosable_output_close(self->base.output);
-  close(self->fd);
-  free(self);
-}
+NetConn* net_connect_tcp(const char* addr, const char* bindto) {
+  int eno;
 
-static NetConn_Impl tcp_conn_impl = {
-  .close = tcp_conn_close,
-};
+  // Lookup remote and local addresses
+  struct addrinfo* remote = lookup(addr, false);
+  struct addrinfo* bindaddr = NULL;
+  struct addrinfo* bindaddr_free = NULL;
+  if (bindto) {
+    TRY {
+      bindaddr = lookup(bindto, false);
+      bindaddr_free = bindaddr;
+      for (;;) {
+        if (bindaddr->ai_family == remote->ai_family) break;
+        bindaddr = bindaddr->ai_next;
+        if (!bindaddr) RAISE(NET_LOOKUP);
+      }
+    } CATCH(err) {
+      if (bindaddr_free) freeaddrinfo(bindaddr_free);
+      freeaddrinfo(remote);
+      verr_raise(err);
+    } ETRY
+  }
+
+  // Create socket
+  int sock = socket(remote->ai_family, SOCK_STREAM, 0);
+  if (sock == -1) goto Error;
+  if (bindaddr) {
+    // Set SO_REUSEADDR
+    int reuse = 1;
+    int r = setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
+    if (r == -1) goto Error;
+    // Bind
+    r = bind(sock, bindaddr->ai_addr, bindaddr->ai_addrlen);
+    if (r == -1) goto Error;
+  }
+  // Connect
+  int r = connect(sock, remote->ai_addr, remote->ai_addrlen);
+  if (r == -1) goto Error;
+
+  freeaddrinfo(remote);
+  if (bindaddr_free) freeaddrinfo(bindaddr_free);
+
+  // Return new NetConn
+  NetConn* result;
+  TRY {
+    result = tcp_conn_new(sock);
+  } CATCH(err) {
+    close(sock);
+    verr_raise(err);
+  } ETRY
+  return result;
+
+Error:
+  eno = errno;
+  if (sock != -1) close(sock);
+  freeaddrinfo(remote);
+  if (bindaddr_free) freeaddrinfo(bindaddr_free);
+  verr_raise(verr_system(eno));
+  return NULL;
+}
