@@ -89,16 +89,19 @@ static int bind_socket(struct addrinfo* lookup) {
       goto Bind;
     }
     lookup = lookup->ai_next;
-    if (!lookup) return -1;
+    if (!lookup) {
+      freeaddrinfo(tofree);
+      RAISE(NET_LOOKUP);
+    }
   } while (true);
 
 Bind:
   sock = socket(lookup->ai_family, SOCK_STREAM, 0);
   if (sock == -1) goto Error;
-  r = bind(sock, lookup->ai_addr, lookup->ai_addrlen);
-  if (r == -1) goto Error;
   int reuse = 1;
   r = setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
+  if (r == -1) goto Error;
+  r = bind(sock, lookup->ai_addr, lookup->ai_addrlen);
   if (r == -1) goto Error;
 
   freeaddrinfo(tofree);
