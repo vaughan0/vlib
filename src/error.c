@@ -14,7 +14,7 @@ static bool initialized = false;
 static Hashtable providers[1];
 static ErrorProvider general_provider, io_provider;
 
-static Vector try_stack[1];
+static __thread Vector try_stack[1];
 
 data(TryFrame) {
   jmp_buf env;
@@ -27,11 +27,18 @@ void verr_init() {
   hashtable_init(providers, hasher_fnv64, memcmp, sizeof(int), sizeof(ErrorProvider*));
   verr_register(VERR_PGENERAL, &general_provider);
   verr_register(VERR_PIO, &io_provider);
-  vector_init(try_stack, sizeof(TryFrame), 3);
+  verr_thread_init();
 }
 void verr_cleanup() {
-  vector_close(try_stack);
+  verr_thread_cleanup();
   hashtable_close(providers);
+}
+
+void verr_thread_init() {
+  vector_init(try_stack, sizeof(TryFrame), 3);
+}
+void verr_thread_cleanup() {
+  vector_close(try_stack);
 }
 
 void verr_register(int provider, ErrorProvider* impl) {

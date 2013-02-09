@@ -35,6 +35,9 @@ void verr_register(int provider, ErrorProvider* impl);
 void verr_init() __attribute__((constructor));
 void verr_cleanup() __attribute__((destructor));
 
+void verr_thread_init();
+void verr_thread_cleanup();
+
 /* Standard providers */
 
 enum {
