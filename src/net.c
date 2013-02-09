@@ -59,7 +59,7 @@ static struct addrinfo* lookup(const char* addr, bool passive) {
     if (nodelen+1 > sizeof(buf)) RAISE(ARGUMENT);
     node = buf;
     memcpy(buf, addr, nodelen);
-    *index = 0;
+    buf[nodelen] = 0;
     service = index+1;
   } else {
     node = addr;
@@ -67,7 +67,6 @@ static struct addrinfo* lookup(const char* addr, bool passive) {
   }
   if (node[0] == '*' && node[1] == 0)
     node = NULL;
-  printf("node=%s service=%s\n", node, service);
   // Perform the lookup
   struct addrinfo hints = {
     .ai_socktype = SOCK_STREAM,
@@ -98,6 +97,10 @@ Bind:
   if (sock == -1) goto Error;
   r = bind(sock, lookup->ai_addr, lookup->ai_addrlen);
   if (r == -1) goto Error;
+  int reuse = 1;
+  r = setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
+  if (r == -1) goto Error;
+
   freeaddrinfo(tofree);
   return sock;
 
