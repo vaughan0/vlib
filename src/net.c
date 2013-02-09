@@ -151,8 +151,8 @@ static NetConn* tcp_accept(void* _self) {
   }
 
   conn->base._impl = &tcp_conn_impl;
-  conn->base.input = fd_input_new(client);
-  conn->base.output = fd_output_new(client);
+  conn->base.input = unclosable_input_new(fd_input_new(client, false));
+  conn->base.output = unclosable_output_new(fd_output_new(client, false));
   conn->fd = client;
 
   return (NetConn*)conn;
@@ -170,8 +170,8 @@ static NetListener_Impl tcp_listener_impl = {
 
 static void tcp_conn_close(void* _self) {
   TCPConn* self = _self;
-  call(self->base.input, close, false);
-  call(self->base.output, close, false);
+  unclosable_input_close(self->base.input);
+  unclosable_output_close(self->base.output);
   close(self->fd);
   free(self);
 }

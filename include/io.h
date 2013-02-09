@@ -14,14 +14,14 @@ interface(Input) {
   int     (*get)(void* self);
   void    (*unget)(void* self);
   bool    (*eof)(void* self);
-  void    (*close)(void* self, bool close_wrapped);
+  void    (*close)(void* self);
 };
 
 interface(Output) {
   void    (*write)(void* self, const char* src, size_t n);
   void    (*put)(void* self, char ch);
   void    (*flush)(void* self);
-  void    (*close)(void* self, bool close_wrapped);
+  void    (*close)(void* self);
 };
 
 size_t      io_read(Input* input, char* dst, size_t n);
@@ -50,13 +50,18 @@ Output*     string_output_new(size_t initcap);
 const char* string_output_data(Output* string_output, size_t* size);
 void        string_output_reset(Output* string_output);
 
-Input*      file_input_new(FILE* f);
-Output*     file_output_new(FILE* f);
+Input*      file_input_new(FILE* f, bool close);
+Output*     file_output_new(FILE* f, bool close);
 
-Input*      fd_input_new(int fd);
-Output*     fd_output_new(int fd);
+Input*      fd_input_new(int fd, bool close);
+Output*     fd_output_new(int fd, bool close);
 
 Input*      limited_input_new(Input* in, size_t limit);
+
+Input*      unclosable_input_new(Input* wrap);
+void        unclosable_input_close(Input* self);
+Output*     unclosable_output_new(Output* wrap);
+void        unclosable_output_close(Output* self);
 
 extern Input  null_input;   // Always returns EOF
 extern Output null_output;  // Discards all data

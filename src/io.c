@@ -10,7 +10,7 @@
 #include <vlib/io.h>
 #include <vlib/vector.h>
 
-static void close_free(void* _self, bool close_wrapped) {
+static void close_free(void* _self) {
   free(_self);
 }
 
@@ -215,7 +215,7 @@ static void string_output_put(void* _self, char ch) {
 
 static void string_output_flush(void* self) { }
 
-static void string_output_close(void* _self, bool close_wrapped) {
+static void string_output_close(void* _self) {
   StringOutput* self = _self;
   Piece *p, *tmp;
   for (p = self->first; p; p = tmp) {
@@ -322,9 +322,9 @@ static bool limited_eof(void* _self) {
   LimitedInput* self = _self;
   return (self->read == self->limit) || io_eof(self->in);
 }
-static void limited_close(void* _self, bool close_wrapped) {
+static void limited_close(void* _self) {
   LimitedInput* self = _self;
-  if (close_wrapped) call(self->in, close, true);
+  call(self->in, close);
   free(self);
 }
 
@@ -349,14 +349,16 @@ Input* limited_input_new(Input* in, size_t limit) {
 data(FileInput) {
   Input   base;
   FILE*   file;
+  bool    close;
 };
 
 static Input_Impl file_input_impl;
 
-Input* file_input_new(FILE* file) {
+Input* file_input_new(FILE* file, bool close) {
   FileInput* self = v_malloc(sizeof(FileInput));
   self->base._impl = &file_input_impl;
   self->file = file;
+  self->close = close;
   return &self->base;
 }
 static size_t file_input_read(void* _self, char* dst, size_t n) {
@@ -373,9 +375,9 @@ static bool file_input_eof(void* _self) {
   FileInput* self = _self;
   return feof(self->file) != 0;
 }
-static void file_input_close(void* _self, bool close_wrapped) {
+static void file_input_close(void* _self) {
   FileInput* self = _self;
-  if (close_wrapped) fclose(self->file);
+  if (self->close) fclose(self->file);
   free(self);
 }
 
@@ -389,14 +391,16 @@ static Input_Impl file_input_impl = {
 data(FileOutput) {
   Output  base;
   FILE*   file;
+  bool    close;
 };
 
 static Output_Impl file_output_impl;
 
-Output* file_output_new(FILE* file) {
+Output* file_output_new(FILE* file, bool close) {
   FileOutput* self = v_malloc(sizeof(FileOutput));
   self->base._impl = &file_output_impl;
   self->file = file;
+  self->close = close;
   return &self->base;
 }
 static void file_output_write(void* _self, const char* src, size_t n) {
@@ -411,9 +415,9 @@ static void file_output_flush(void* _self) {
   FileOutput* self = _self;
   if (fflush(self->file)) verr_raise(VERR_IO);
 }
-static void file_output_close(void* _self, bool close_wrapped) {
+static void file_output_close(void* _self) {
   FileOutput* self = _self;
-  if (close_wrapped) fclose(self->file);
+  if (self->close) fclose(self->file);
   free(self);
 }
 
@@ -430,15 +434,17 @@ data(FDInput) {
   Input base;
   int   fd;
   bool  eof;
+  bool  close;
 };
 
 static Input_Impl fd_input_impl;
 
-Input* fd_input_new(int fd) {
+Input* fd_input_new(int fd, bool close) {
   FDInput* self = v_malloc(sizeof(FDInput));
   self->base._impl = &fd_input_impl;
   self->fd = fd;
   self->eof = false;
+  self->close = close;
   return &self->base;
 }
 
@@ -454,9 +460,9 @@ static bool fd_input_eof(void* _self) {
   FDInput* self = _self;
   return self->eof;
 }
-static void fd_input_close(void* _self, bool close_wrapped) {
+static void fd_input_close(void* _self) {
   FDInput* self = _self;
-  if (close_wrapped) close(self->fd);
+  if (self->close) close(self->fd);
   free(self);
 }
 
@@ -469,14 +475,16 @@ static Input_Impl fd_input_impl = {
 data(FDOutput) {
   Output  base;
   int     fd;
+  bool    close;
 };
 
 static Output_Impl fd_output_impl;
 
-Output* fd_output_new(int fd) {
+Output* fd_output_new(int fd, bool close) {
   FDOutput* self = v_malloc(sizeof(FDOutput));
   self->base._impl = &fd_output_impl;
   self->fd = fd;
+  self->close = close;
   return &self->base;
 }
 
@@ -490,9 +498,9 @@ static void fd_output_write(void* _self, const char* src, size_t n) {
   }
 }
 static void fd_output_flush(void* _self) { /* unbuffered */ }
-static void fd_output_close(void* _self, bool close_wrapped) {
+static void fd_output_close(void* _self) {
   FDOutput* self = _self;
-  if (close_wrapped) close(self->fd);
+  if (self->close) close(self->fd);
   free(self);
 }
 
@@ -501,6 +509,93 @@ static Output_Impl fd_output_impl = {
   .flush = fd_output_flush,
   .close = fd_output_close,
 };
+
+/* Unclosable IO */
+
+data(UnclosableInput) {
+  Input   base;
+  Input*  wrap;
+};
+
+static size_t unclosable_read(void* _self, char* dst, size_t n) {
+  UnclosableInput* self = _self;
+  return io_read(self->wrap, dst, n);
+}
+static int unclosable_get(void* _self) {
+  UnclosableInput* self = _self;
+  return io_get(self->wrap);
+}
+static void unclosable_unget(void* _self) {
+  UnclosableInput* self = _self;
+  return io_unget(self->wrap);
+}
+static bool unclosable_eof(void* _self) {
+  UnclosableInput* self = _self;
+  return io_eof(self->wrap);
+}
+static void _unclosable_input_close(void* _self) {
+  /* I'm UNCLOSABLE!!!1!1!!111!!! */
+}
+
+static Input_Impl unclosable_input_impl = {
+  .read = unclosable_read,
+  .get = unclosable_get,
+  .unget = unclosable_unget,
+  .eof = unclosable_eof,
+  .close = _unclosable_input_close,
+};
+
+Input* unclosable_input_new(Input* wrap) {
+  UnclosableInput* self = v_malloc(sizeof(UnclosableInput));
+  self->base._impl = &unclosable_input_impl;
+  self->wrap = wrap;
+  return &self->base;
+}
+void unclosable_input_close(Input* _self) {
+  UnclosableInput* self = (UnclosableInput*)_self;
+  call(self->wrap, close);
+  free(self);
+}
+
+data(UnclosableOutput) {
+  Output  base;
+  Output* wrap;
+};
+
+static void unclosable_write(void* _self, const char* src, size_t n) {
+  UnclosableOutput* self = _self;
+  io_write(self->wrap, src, n);
+}
+static void unclosable_put(void* _self, char ch) {
+  UnclosableOutput* self = _self;
+  io_put(self->wrap, ch);
+}
+static void unclosable_flush(void* _self) {
+  UnclosableOutput* self = _self;
+  io_flush(self->wrap);
+}
+static void _unclosable_output_close(void* _self) {
+  /* unclosable etc etc */
+}
+
+static Output_Impl unclosable_output_impl = {
+  .write = unclosable_write,
+  .put = unclosable_put,
+  .flush = unclosable_flush,
+  .close = _unclosable_output_close,
+};
+
+Output* unclosable_output_new(Output* wrap) {
+  UnclosableOutput* self = v_malloc(sizeof(UnclosableOutput));
+  self->base._impl = &unclosable_output_impl;
+  self->wrap = wrap;
+  return &self->base;
+}
+void unclosable_output_close(Output* _self) {
+  UnclosableOutput* self = (UnclosableOutput*)_self;
+  call(self->wrap, close);
+  free(self);
+}
 
 /* Null IO */
 
@@ -511,7 +606,7 @@ static int null_input_get(void* self) {
   return -1;
 }
 static void null_input_unget(void* self) {}
-static void null_input_close(void* self, bool close_wrapped) {}
+static void null_input_close(void* self) {}
 static bool null_input_eof(void* self) {return true;}
 
 static Input_Impl null_input_impl = {
@@ -529,7 +624,7 @@ Input null_input = {
 static void null_output_write(void* self, const char* src, size_t n) {}
 static void null_output_put(void* self, char ch) {}
 static void null_output_flush(void* self) {}
-static void null_output_close(void* self, bool close_wrapped) {}
+static void null_output_close(void* self) {}
 
 static Output_Impl null_output_impl = {
   .write = null_output_write,
@@ -552,7 +647,7 @@ static int zero_input_get(void* self) {
   return 0;
 }
 static void zero_input_unget(void* self) {}
-static void zero_input_close(void* self, bool close_wrapped) {}
+static void zero_input_close(void* self) {}
 static bool zero_input_eof(void* self) {return false;}
 
 static Input_Impl zero_input_impl = {
