@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 
 #include <vlib/std.h>
 #include <vlib/error.h>
@@ -36,6 +37,10 @@ void        io_flush(Output* output);
 
 size_t      io_copy(Input* from, Output* to);
 size_t      io_copyn(Input* from, Output* to, size_t max);
+
+static inline void io_writec(Output* out, const char* str) {
+  io_write(out, str, strlen(str));
+}
 
 /* Some standard IO implementations */
 
