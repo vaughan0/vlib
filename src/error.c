@@ -68,6 +68,7 @@ static const char* general_get_msg(error_t err) {
   case VERR_NOMEM:      return "out of memory";
   case VERR_ACCESS:     return "permission denied";
   case VERR_SYSTEM:     return "system error";
+  case VERR_INTERRUPT:  return "operation interrupted";
   };
   return NULL;
 }
@@ -96,6 +97,8 @@ error_t verr_system(int eno) {
   switch (eno) {
   case EACCES:
     return VERR_ACCESS;
+  case EINTR:
+    return VERR_INTERRUPT;
   case ENOBUFS:
   case ENOMEM:
     return VERR_NOMEM;

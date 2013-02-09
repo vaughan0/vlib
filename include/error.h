@@ -50,6 +50,7 @@ enum {
   VERR_NOMEM      = VERR_MAKE(VERR_PGENERAL, 3),  // out of memory
   VERR_ACCESS     = VERR_MAKE(VERR_PGENERAL, 4),  // permission denied
   VERR_SYSTEM     = VERR_MAKE(VERR_PGENERAL, 5),  // system error (generally from a system call)
+  VERR_INTERRUPT  = VERR_MAKE(VERR_PGENERAL, 6),  // operation interrupted
 };
 
 // IO error codes
