@@ -63,7 +63,7 @@ NoDetails:
 
 static const char* general_get_msg(error_t err) {
   switch (err) {
-  case VERR_ARGERR:     return "invalid argument";
+  case VERR_ARGUMENT:   return "invalid argument";
   case VERR_MALFORMED:  return "malformed data";
   case VERR_NOMEM:      return "out of memory";
   case VERR_ACCESS:     return "permission denied";

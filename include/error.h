@@ -45,7 +45,7 @@ enum {
 
 // General error codes
 enum {
-  VERR_ARGERR     = VERR_MAKE(VERR_PGENERAL, 1),  // invalid argument
+  VERR_ARGUMENT   = VERR_MAKE(VERR_PGENERAL, 1),  // invalid argument
   VERR_MALFORMED  = VERR_MAKE(VERR_PGENERAL, 2),  // malformed data
   VERR_NOMEM      = VERR_MAKE(VERR_PGENERAL, 3),  // out of memory
   VERR_ACCESS     = VERR_MAKE(VERR_PGENERAL, 4),  // permission denied
