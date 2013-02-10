@@ -81,9 +81,17 @@ static NetConn_Impl tcp_conn_impl = {
 };
 
 static NetConn* tcp_conn_new(int fd) {
-  TCPConn* self = v_malloc(sizeof(TCPConn));
-  self->base._impl = &tcp_conn_impl;
-  self->fd = fd;
+  TCPConn* self;
+  TRY {
+    self = v_malloc(sizeof(TCPConn));
+    self->base._impl = &tcp_conn_impl;
+    self->base.input = unclosable_input_new(fd_input_new(fd, false));
+    self->base.output = unclosable_output_new(fd_output_new(fd, false));
+    self->fd = fd;
+  } CATCH(err) {
+    close(fd);
+    verr_raise(err);
+  } ETRY
   return &self->base;
 }
 
@@ -98,15 +106,14 @@ NetListener* net_listen_tcp(const char* addr) {
   int eno;
   struct addrinfo* result = lookup(addr, true);
 
-  // Create socket
   int sock = socket(result->ai_family, SOCK_STREAM, 0);
   if (sock == -1) goto Error;
-  // Set SO_REUSEADDR
   int reuse = 1;
   int r = setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
   if (r == -1) goto Error;
-  // Bind
   r = bind(sock, result->ai_addr, result->ai_addrlen);
+  if (r == -1) goto Error;
+  r = listen(sock, 5);
   if (r == -1) goto Error;
 
   // Create TCPListener
@@ -201,16 +208,7 @@ NetConn* net_connect_tcp(const char* addr, const char* bindto) {
 
   freeaddrinfo(remote);
   if (bindaddr_free) freeaddrinfo(bindaddr_free);
-
-  // Return new NetConn
-  NetConn* result;
-  TRY {
-    result = tcp_conn_new(sock);
-  } CATCH(err) {
-    close(sock);
-    verr_raise(err);
-  } ETRY
-  return result;
+  return tcp_conn_new(sock);
 
 Error:
   eno = errno;
