@@ -41,6 +41,7 @@ size_t      io_copyn(Input* from, Output* to, size_t max);
 static inline void io_writec(Output* out, const char* str) {
   io_write(out, str, strlen(str));
 }
+#define io_writelit(out, str) io_write((out), (str), sizeof(str));
 
 /* Some standard IO implementations */
 
