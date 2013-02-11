@@ -36,12 +36,13 @@ void  flags_close(Flags* self);
 // Adds a flag and returns a pointer to it's default value.
 void* add_flag(Flags* self, void* ptr, FlagType* type, const char* name, const char* help);
 
-void  flags_parse(Flags* self, int argc, char* const argv[], Vector* extra);
+bool  flags_parse(Flags* self, int argc, char* const argv[], Vector* extra);
 
 /* Flag types */
 
 extern FlagType flagtype_int[1];
 extern FlagType flagtype_string[1];
+extern FlagType flagtype_bool[1];
 
 #endif /* FLAG_H_D36A1C1C6AFA5C */
 
