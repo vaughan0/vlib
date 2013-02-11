@@ -7,11 +7,9 @@
 #include <vlib/flag.h>
 #include <vlib/error.h>
 
-static void default_usage(Flags* flags, const char* selfname);
-
 void flags_init(Flags* self) {
   hashtable_init(self->flags, hasher_fnv64str, equaler_str, sizeof(const char*), sizeof(Flag));
-  self->usage = default_usage;
+  self->usage = flag_default_usage;
 }
 void flags_close(Flags* self) {
   int free_flag(void* _key, void* _data) {
@@ -78,7 +76,7 @@ Usage:
   return false;
 }
 
-static void default_usage(Flags* flags, const char* selfname) {
+void flag_default_usage(Flags* flags, const char* selfname) {
   fprintf(stderr, "Usage: %s\n", selfname);
   if (flags->flags->size > 0) {
     int print_flag(void* _key, void* _data) {

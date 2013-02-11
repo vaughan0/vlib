@@ -17,6 +17,8 @@ data(FlagType) {
 
 typedef void (*UsageFunc)(struct Flags* flags, const char* selfname);
 
+void  flag_default_usage(struct Flags* flags, const char* selfname);
+
 data(Flag) {
   const char* name;
   const char* help;
