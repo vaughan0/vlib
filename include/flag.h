@@ -35,7 +35,7 @@ data(Flags) {
 void  flags_init(Flags* self);
 void  flags_close(Flags* self);
 
-// Adds a flag and returns a pointer to it's default value.
+// Adds a flag and returns a pointer to its default value.
 void* add_flag(Flags* self, void* ptr, FlagType* type, const char* name, const char* help);
 
 bool  flags_parse(Flags* self, int argc, char* const argv[], Vector* extra);
