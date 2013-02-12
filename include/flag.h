@@ -6,6 +6,7 @@
 #include <vlib/std.h>
 #include <vlib/hashtable.h>
 #include <vlib/vector.h>
+#include <vlib/io.h>
 
 struct Flags;
 
@@ -15,9 +16,7 @@ data(FlagType) {
   void    (*print)(char buf[64], void* ptr);
 };
 
-typedef void (*UsageFunc)(struct Flags* flags, const char* selfname);
-
-void  flag_default_usage(struct Flags* flags, const char* selfname);
+typedef void (*UsageFunc)(struct Flags* flags, const char* error, const char* selfname);
 
 data(Flag) {
   const char* name;
@@ -34,6 +33,8 @@ data(Flags) {
 
 void  flags_init(Flags* self);
 void  flags_close(Flags* self);
+void  print_usage(Flags* self, const char* name, Output* out);
+void  print_flags(Flags* self, Output* out);
 
 // Adds a flag and returns a pointer to its default value.
 void* add_flag(Flags* self, void* ptr, FlagType* type, const char* name, const char* help);

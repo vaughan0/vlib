@@ -6,6 +6,9 @@
 
 #include <vlib/flag.h>
 #include <vlib/error.h>
+#include <vlib/bufio.h>
+
+static void flag_default_usage(Flags* self, const char* error, const char* selfname);
 
 void flags_init(Flags* self) {
   hashtable_init(self->flags, hasher_fnv64str, equaler_str, sizeof(const char*), sizeof(Flag));
@@ -32,6 +35,7 @@ void* add_flag(Flags* self, void* ptr, FlagType* type, const char* name, const c
 }
 
 bool flags_parse(Flags* self, int argc, char* const argv[], Vector* extra) {
+  char error[256];
 
   // Initialize all flags to their default values
   int init_flag(void* _key, void* _data) {
@@ -52,11 +56,11 @@ bool flags_parse(Flags* self, int argc, char* const argv[], Vector* extra) {
       Flag* flag = hashtable_get(self->flags, &name);
       if (flag) {
         if (!flag->type->parse(value, flag->ptr)) {
-          fprintf(stderr, "Illegal value for %s: %s\n", name, value);
+          snprintf(error, sizeof(error), "Illegal value for %s: %s", name, value);
           goto Usage;
         }
       } else {
-        fprintf(stderr, "Unknown argument: %s\n", name);
+        snprintf(error, sizeof(error), "Unknown argument: %s", name);
         goto Usage;
       }
 
@@ -64,7 +68,7 @@ bool flags_parse(Flags* self, int argc, char* const argv[], Vector* extra) {
       if (extra) {
         *(char**)vector_push(extra) = arg;
       } else {
-        fprintf(stderr, "Extra argument: %s\n", arg);
+        snprintf(error, sizeof(error), "Extra argument: %s", arg);
         goto Usage;
       }
     }
@@ -72,24 +76,41 @@ bool flags_parse(Flags* self, int argc, char* const argv[], Vector* extra) {
   return true;
 
 Usage:
-  self->usage(self, argv[0]);
+  if (self->usage) self->usage(self, error, argv[0]);
   return false;
 }
 
-void flag_default_usage(Flags* flags, const char* selfname) {
-  fprintf(stderr, "Usage: %s\n", selfname);
-  if (flags->flags->size > 0) {
-    int print_flag(void* _key, void* _data) {
-      Flag* flag = _data;
-      char valbuf[64];
-      flag->type->print(valbuf, flag->default_value);
-      char cbuf[512];
-      snprintf(cbuf, sizeof(cbuf), "  -%s=%s", flag->name, valbuf);
-      fprintf(stderr, "%-20s  %s\n", cbuf, flag->help);
-      return HT_CONTINUE;
-    }
-    hashtable_iter(flags->flags, print_flag);
+void print_flags(Flags* self, Output* out) {
+  int print_flag(void* _key, void* _data) {
+    Flag* flag = _data;
+    // Format flag name and value
+    char valbuf[64];
+    flag->type->print(valbuf, flag->default_value);
+    char cbuf[512];
+    int n = snprintf(cbuf, sizeof(cbuf), "  -%s=%s", flag->name, valbuf);
+    // Print nicely aligned line
+    io_write(out, cbuf, n);
+    for (int i = n; i < 20; i++) io_put(out, ' ');
+    //io_writelit(out, "  ");
+    //io_writec(out, flag->help);
+    return HT_CONTINUE;
   }
+  hashtable_iter(self->flags, print_flag);
+}
+void print_usage(Flags* self, const char* name, Output* out) {
+  //io_writelit(out, "Usage: ");
+  //io_writec(out, name);
+  io_put(out, '\n');
+  print_flags(self, out);
+}
+
+void flag_default_usage(Flags* flags, const char* error, const char* selfname) {
+  //Output* out = buf_output_new(file_output_new(stderr, false), 1024);
+  Output* out = NULL;
+  //io_writec(out, error);
+  io_put(out, '\n');
+  print_usage(flags, selfname, out);
+  //call(out, close);
   exit(1);
 }
 
