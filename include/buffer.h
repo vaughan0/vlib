@@ -6,7 +6,7 @@
 #include <vlib/std.h>
 #include <vlib/io.h>
 
-// A simple, non-circular buffer. Primary used for buffered IO.
+// A simple, non-circular buffer. Primarily used for buffered IO.
 data(Buffer) {
   size_t  size;
   size_t  read;

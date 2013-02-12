@@ -115,7 +115,6 @@ static inline GQI* gqic_new_default(const char* _value) {
 
 // Value: like Default, but only returns the string if the query string is empty.
 GQI* gqi_new_value(const GQI_String* value);
-
 static inline GQI* gqic_new_value(const char* _value) {
   GQI_String value = {_value, strlen(_value)};
   return gqi_new_value(&value);

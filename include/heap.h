@@ -18,8 +18,8 @@ typedef struct Heap {
   Vector      v;
 } Heap;
 
-void heap_init(Heap* h, HeapCmp cmp, size_t elemsz, size_t capacity);
-void heap_close(Heap* h);
+void      heap_init(Heap* h, HeapCmp cmp, size_t elemsz, size_t capacity);
+void      heap_close(Heap* h);
 
 void*     heap_peek(Heap* h, HeapRef* ref);
 void      heap_pop(Heap* h);
