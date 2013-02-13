@@ -54,6 +54,7 @@ enum {
   VERR_ACCESS     = VERR_MAKE(VERR_PGENERAL, 4),  // permission denied
   VERR_SYSTEM     = VERR_MAKE(VERR_PGENERAL, 5),  // system error (generally from a system call)
   VERR_INTERRUPT  = VERR_MAKE(VERR_PGENERAL, 6),  // operation interrupted
+  VERR_STATE      = VERR_MAKE(VERR_PGENERAL, 7),  // illegal state
 };
 
 // IO error codes

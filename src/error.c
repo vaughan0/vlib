@@ -78,6 +78,7 @@ static const char* general_get_msg(error_t err) {
   case VERR_ACCESS:     return "permission denied";
   case VERR_SYSTEM:     return "system error";
   case VERR_INTERRUPT:  return "operation interrupted";
+  case VERR_STATE:      return "illegal state";
   };
   return NULL;
 }
