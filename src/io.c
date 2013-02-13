@@ -52,6 +52,7 @@ bool io_eof(Input* in) {
 }
 
 void io_write(Output* out, const char* src, size_t n) {
+  if (n == 0) return;
   if (out->_impl->write) {
     call(out, write, src, n);
     return;
