@@ -69,10 +69,16 @@ error_t verr_system(int eno);
 
 void    verr_try(void (*action)(), void (*handle)(error_t error), void (*cleanup)());
 void    verr_raise(error_t error);
+// Reraise an exception from a CATCH block
+void    verr_reraise();
 
 static inline void verr_raise_system() {
   verr_raise(verr_system(errno));
 }
+
+#ifdef DEBUG
+void    verr_print_stacktrace();
+#endif
 
 #define RAISE(verr) verr_raise(VERR_##verr)
 

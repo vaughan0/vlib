@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <assert.h>
 #include <setjmp.h>
+#include <execinfo.h>
 
 #include <vlib/error.h>
 #include <vlib/hashtable.h>
@@ -15,6 +16,7 @@ static Hashtable providers[1];
 static ErrorProvider general_provider, io_provider;
 
 static __thread Vector try_stack[1];
+static __thread error_t current_error;
 
 data(TryFrame) {
   jmp_buf env;
@@ -121,6 +123,11 @@ error_t verr_system(int eno) {
 
 /* Exceptions */
 
+#ifdef DEBUG
+static __thread void* backtrace_buffer[32];
+static __thread int backtrace_size;
+#endif
+
 void verr_try(void (*action)(), void (*handle)(error_t error), void (*cleanup)()) {
   TryFrame* frame = vector_push(try_stack);
   error_t error = setjmp(frame->env);
@@ -145,10 +152,31 @@ void verr_try(void (*action)(), void (*handle)(error_t error), void (*cleanup)()
 
 void verr_raise(error_t error) {
   assert(error != 0);
+#ifdef DEBUG
+  backtrace_size = backtrace(backtrace_buffer, sizeof(backtrace_buffer) / sizeof(void*));
+#endif
+  current_error = error;
+  verr_reraise();
+}
+void verr_reraise() {
   if (try_stack->size > 0) {
     TryFrame* frame = vector_back(try_stack);
-    longjmp(frame->env, error);
+    longjmp(frame->env, current_error);
   }
-  fprintf(stderr, "unhandled exception: %s\n", verr_msg(error));
+  fprintf(stderr, "unhandled exception: %s\n", verr_msg(current_error));
   abort();
 }
+
+#ifdef DEBUG
+void verr_print_stacktrace() {
+  char** symbols = backtrace_symbols(backtrace_buffer, backtrace_size);
+  if (!symbols) {
+    backtrace_symbols_fd(backtrace_buffer, backtrace_size, 2);
+    return;
+  }
+  for (int i = 0; i < backtrace_size; i++) {
+    fprintf(stderr, "%s\n", symbols[i]);
+  }
+  free(symbols);
+}
+#endif
