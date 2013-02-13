@@ -453,7 +453,7 @@ static size_t fd_input_read(void* _self, char* dst, size_t n) {
   FDInput* self = _self;
   if (self->eof) return 0;
   ssize_t nread = read(self->fd, dst, n);
-  if (nread == -1) verr_raise(VERR_SYSTEM);
+  if (nread == -1) verr_raise_system();
   if (nread == 0) self->eof = true;
   return nread;
 }
