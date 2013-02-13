@@ -79,6 +79,7 @@ static const char* general_get_msg(error_t err) {
   case VERR_SYSTEM:     return "system error";
   case VERR_INTERRUPT:  return "operation interrupted";
   case VERR_STATE:      return "illegal state";
+  case VERR_TIMEOUT:    return "timeout";
   };
   return NULL;
 }
