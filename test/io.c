@@ -24,7 +24,7 @@ static int string_io_write() {
   assertEqual(strlen(expect), sz);
   assertEqual(strcmp(result, expect), 0);
 
-  call(out, close, true);
+  call(out, close);
   return 0;
 };
 static int string_io_put() {
@@ -37,7 +37,7 @@ static int string_io_put() {
   const char* result = string_output_data(out, &sz);
   assertEqual(sz, 4);
   assertEqual(strcmp(result, "test"), 0);
-  call(out, close, true);
+  call(out, close);
   return 0;
 }
 static int string_io_reset() {
@@ -55,7 +55,7 @@ static int string_io_reset() {
   assertEqual(strlen(expect), sz);
   assertEqual(strcmp(result, expect), 0);
 
-  call(out, close, true);
+  call(out, close);
   return 0;
 }
 static int string_io_read() {
@@ -71,7 +71,7 @@ static int string_io_read() {
 
   assertEqual(io_get(in), -1);
 
-  call(in, close, true);
+  call(in, close);
   return 0;
 }
 
@@ -90,8 +90,8 @@ static int limited_input() {
   assertEqual(strlen(expect), sz);
   assertEqual(strcmp(expect, result), 0);
 
-  call(strout, close, true);
-  call(in, close, true);
+  call(strout, close);
+  call(in, close);
   return 0;
 }
 static int limited_input_unget() {
@@ -106,7 +106,7 @@ static int limited_input_unget() {
   c = io_get(in); assertEqual(c, 'b');
   c = io_get(in); assertEqual(c, -1);
 
-  call(in, close, true);
+  call(in, close);
   return 0;
 }
 

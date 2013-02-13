@@ -31,7 +31,8 @@ interface(NetListener) {
   void      (*close)(void* self);
 };
 
-NetListener*  net_listen_tcp(const char* addr, int port);
+NetListener*  net_listen_tcp(const char* addr);
+NetConn*      net_connect_tcp(const char* addr, const char* bind);
 
 #endif /* NET_H_FA4D5B9E6863EB */
 

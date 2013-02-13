@@ -17,11 +17,10 @@ void* buf_input_new(Input* wrap, size_t buffer) {
   return self;
 }
 
-static void buf_input_close(void* _self, bool close_wrapped) {
+static void buf_input_close(void* _self) {
   BufInput* self = _self;
   buffer_free(self->buf);
-  if (close_wrapped)
-    call(self->in, close, true);
+  call(self->in, close);
   free(self);
 }
 static size_t buf_input_read(void* _self, char* dst, size_t n) {
@@ -94,12 +93,11 @@ static void buf_output_flush(void* _self) {
   buffer_flush(self->buf, self->out);
   call(self->out, flush);
 }
-static void buf_output_close(void* _self, bool close_wrapped) {
+static void buf_output_close(void* _self) {
   BufOutput* self = _self;
   buf_output_flush(self);
   buffer_free(self->buf);
-  if (close_wrapped)
-    call(self->out, close, true);
+  call(self->out, close);
   free(self);
 }
 

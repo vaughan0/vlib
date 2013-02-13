@@ -35,6 +35,9 @@ void verr_register(int provider, ErrorProvider* impl);
 void verr_init() __attribute__((constructor));
 void verr_cleanup() __attribute__((destructor));
 
+void verr_thread_init();
+void verr_thread_cleanup();
+
 /* Standard providers */
 
 enum {
@@ -45,11 +48,12 @@ enum {
 
 // General error codes
 enum {
-  VERR_ARGERR     = VERR_MAKE(VERR_PGENERAL, 1),  // invalid argument
+  VERR_ARGUMENT   = VERR_MAKE(VERR_PGENERAL, 1),  // invalid argument
   VERR_MALFORMED  = VERR_MAKE(VERR_PGENERAL, 2),  // malformed data
   VERR_NOMEM      = VERR_MAKE(VERR_PGENERAL, 3),  // out of memory
   VERR_ACCESS     = VERR_MAKE(VERR_PGENERAL, 4),  // permission denied
   VERR_SYSTEM     = VERR_MAKE(VERR_PGENERAL, 5),  // system error (generally from a system call)
+  VERR_INTERRUPT  = VERR_MAKE(VERR_PGENERAL, 6),  // operation interrupted
 };
 
 // IO error codes

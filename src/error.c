@@ -14,7 +14,7 @@ static bool initialized = false;
 static Hashtable providers[1];
 static ErrorProvider general_provider, io_provider;
 
-static Vector try_stack[1];
+static __thread Vector try_stack[1];
 
 data(TryFrame) {
   jmp_buf env;
@@ -27,11 +27,18 @@ void verr_init() {
   hashtable_init(providers, hasher_fnv64, memcmp, sizeof(int), sizeof(ErrorProvider*));
   verr_register(VERR_PGENERAL, &general_provider);
   verr_register(VERR_PIO, &io_provider);
-  vector_init(try_stack, sizeof(TryFrame), 3);
+  verr_thread_init();
 }
 void verr_cleanup() {
-  vector_close(try_stack);
+  verr_thread_cleanup();
   hashtable_close(providers);
+}
+
+void verr_thread_init() {
+  vector_init(try_stack, sizeof(TryFrame), 3);
+}
+void verr_thread_cleanup() {
+  vector_close(try_stack);
 }
 
 void verr_register(int provider, ErrorProvider* impl) {
@@ -63,11 +70,12 @@ NoDetails:
 
 static const char* general_get_msg(error_t err) {
   switch (err) {
-  case VERR_ARGERR:     return "invalid argument";
+  case VERR_ARGUMENT:   return "invalid argument";
   case VERR_MALFORMED:  return "malformed data";
   case VERR_NOMEM:      return "out of memory";
   case VERR_ACCESS:     return "permission denied";
   case VERR_SYSTEM:     return "system error";
+  case VERR_INTERRUPT:  return "operation interrupted";
   };
   return NULL;
 }
@@ -96,6 +104,8 @@ error_t verr_system(int eno) {
   switch (eno) {
   case EACCES:
     return VERR_ACCESS;
+  case EINTR:
+    return VERR_INTERRUPT;
   case ENOBUFS:
   case ENOMEM:
     return VERR_NOMEM;
