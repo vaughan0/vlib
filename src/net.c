@@ -32,7 +32,7 @@ void net_register_errors() {
   verr_register(VERR_PNET, &net_provider);
 }
 
-/* TCP */
+/* TCP Utilitios */
 
 // Performs a lookup given an address (node:service).
 static struct addrinfo* lookup(const char* addr, bool passive) {
@@ -64,21 +64,14 @@ static struct addrinfo* lookup(const char* addr, bool passive) {
   return result;
 }
 
+/* TCPConn */
+
 data(TCPConn) {
   NetConn base;
   int     fd;
 };
+static NetConn_Impl tcp_conn_impl;
 
-static void tcp_conn_close(void* _self) {
-  TCPConn* self = _self;
-  unclosable_input_close(self->base.input);
-  unclosable_output_close(self->base.output);
-  close(self->fd);
-  free(self);
-}
-static NetConn_Impl tcp_conn_impl = {
-  .close = tcp_conn_close,
-};
 static NetConn* tcp_conn_new(int fd) {
   TCPConn* self;
   TRY {
@@ -93,12 +86,32 @@ static NetConn* tcp_conn_new(int fd) {
   } ETRY
   return &self->base;
 }
+static void tcp_set_timeout(void* _self, unsigned seconds) {
+  TCPConn* self = _self;
+  struct timeval tv = {
+    .tv_sec = seconds,
+  };
+  if (setsockopt(self->fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) == -1) verr_raise_system();
+  if (setsockopt(self->fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv)) == -1) verr_raise_system();
+}
+static void tcp_conn_close(void* _self) {
+  TCPConn* self = _self;
+  unclosable_input_close(self->base.input);
+  unclosable_output_close(self->base.output);
+  close(self->fd);
+  free(self);
+}
+static NetConn_Impl tcp_conn_impl = {
+  .close = tcp_conn_close,
+  .set_timeout = tcp_set_timeout,
+};
+
+/* TCPListener */
 
 data(TCPListener) {
   NetListener base;
   int socket;
 };
-
 static NetListener_Impl tcp_listener_impl;
 
 NetListener* net_listen_tcp(const char* addr) {
@@ -160,11 +173,12 @@ static void tcp_listener_close(void* _self) {
   close(self->socket);
   free(self);
 }
-
 static NetListener_Impl tcp_listener_impl = {
   .accept = tcp_accept,
   .close = tcp_listener_close,
 };
+
+/* Other functions */
 
 NetConn* net_connect_tcp(const char* addr, const char* bindto) {
   int eno;

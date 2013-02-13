@@ -18,6 +18,7 @@ void net_register_errors() __attribute__((constructor));
 
 data(NetConn_Impl) {
   void  (*close)(void* self);
+  void  (*set_timeout)(void* self, unsigned seconds);
 };
 
 data(NetConn) {
