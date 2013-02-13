@@ -81,7 +81,7 @@ size_t io_copy(Input* from, Output* to) {
   size_t copied = 0;
   for (;;) {
     size_t r = io_read(from, cbuf, sizeof(cbuf));
-    if (r <= 0) break;
+    if (r == 0) break;
     io_write(to, cbuf, r);
     copied += r;
   }
