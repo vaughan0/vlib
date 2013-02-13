@@ -112,6 +112,8 @@ error_t verr_system(int eno) {
   case ENOBUFS:
   case ENOMEM:
     return VERR_NOMEM;
+  case EAGAIN:
+    return VERR_TIMEOUT;
   case EFBIG:
   case EIO:
   case ENOSPC:

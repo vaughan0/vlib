@@ -55,6 +55,7 @@ enum {
   VERR_SYSTEM     = VERR_MAKE(VERR_PGENERAL, 5),  // system error (generally from a system call)
   VERR_INTERRUPT  = VERR_MAKE(VERR_PGENERAL, 6),  // operation interrupted
   VERR_STATE      = VERR_MAKE(VERR_PGENERAL, 7),  // illegal state
+  VERR_TIMEOUT    = VERR_MAKE(VERR_PGENERAL, 8),  // timeout
 };
 
 // IO error codes
