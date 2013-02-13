@@ -165,19 +165,22 @@ void verr_reraise() {
     longjmp(frame->env, current_error);
   }
   fprintf(stderr, "unhandled exception: %s\n", verr_msg(current_error));
+#ifdef DEBUG
+  verr_print_stacktrace();
+#endif
   abort();
 }
 
-#ifdef DEBUG
 void verr_print_stacktrace() {
+#ifdef DEBUG
   char** symbols = backtrace_symbols(backtrace_buffer, backtrace_size);
   if (!symbols) {
     backtrace_symbols_fd(backtrace_buffer, backtrace_size, 2);
     return;
   }
   for (int i = 0; i < backtrace_size; i++) {
-    fprintf(stderr, "%s\n", symbols[i]);
+    fprintf(stderr, "  %s\n", symbols[i]);
   }
   free(symbols);
-}
 #endif
+}

@@ -77,9 +77,7 @@ static inline void verr_raise_system() {
   verr_raise(verr_system(errno));
 }
 
-#ifdef DEBUG
 void    verr_print_stacktrace();
-#endif
 
 #define RAISE(verr) verr_raise(VERR_##verr)
 
