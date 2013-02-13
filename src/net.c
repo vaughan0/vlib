@@ -69,17 +69,24 @@ data(TCPConn) {
   int     fd;
 };
 
+static void tcp_conn_shutdown(void* _self) {
+  TCPConn* self = _self;
+  if (self->fd != -1) {
+    close(self->fd);
+    self->fd = -1;
+  }
+}
 static void tcp_conn_close(void* _self) {
   TCPConn* self = _self;
   unclosable_input_close(self->base.input);
   unclosable_output_close(self->base.output);
-  close(self->fd);
+  if (self->fd != -1) close(self->fd);
   free(self);
 }
 static NetConn_Impl tcp_conn_impl = {
+  .shutdown = tcp_conn_shutdown,
   .close = tcp_conn_close,
 };
-
 static NetConn* tcp_conn_new(int fd) {
   TCPConn* self;
   TRY {
@@ -156,15 +163,23 @@ static NetConn* tcp_accept(void* _self) {
 
   return tcp_conn_new(client);
 }
-static void tcp_close(void* _self) {
+static void tcp_listener_shutdown(void* _self) {
   TCPListener* self = _self;
-  close(self->socket);
+  if (self->socket != -1) {
+    close(self->socket);
+    self->socket = -1;
+  }
+}
+static void tcp_listener_close(void* _self) {
+  TCPListener* self = _self;
+  if (self->socket != -1) close(self->socket);
   free(self);
 }
 
 static NetListener_Impl tcp_listener_impl = {
   .accept = tcp_accept,
-  .close = tcp_close,
+  .shutdown = tcp_listener_shutdown,
+  .close = tcp_listener_close,
 };
 
 NetConn* net_connect_tcp(const char* addr, const char* bindto) {
