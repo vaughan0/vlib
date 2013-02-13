@@ -91,26 +91,25 @@ void print_flags(Flags* self, Output* out) {
     // Print nicely aligned line
     io_write(out, cbuf, n);
     for (int i = n; i < 20; i++) io_put(out, ' ');
-    //io_writelit(out, "  ");
-    //io_writec(out, flag->help);
+    io_writelit(out, "  ");
+    io_writec(out, flag->help);
     return HT_CONTINUE;
   }
   hashtable_iter(self->flags, print_flag);
 }
 void print_usage(Flags* self, const char* name, Output* out) {
-  //io_writelit(out, "Usage: ");
-  //io_writec(out, name);
+  io_writelit(out, "Usage: ");
+  io_writec(out, name);
   io_put(out, '\n');
   print_flags(self, out);
 }
 
 void flag_default_usage(Flags* flags, const char* error, const char* selfname) {
-  //Output* out = buf_output_new(file_output_new(stderr, false), 1024);
-  Output* out = NULL;
-  //io_writec(out, error);
+  Output* out = buf_output_new(file_output_new(stderr, false), 1024);
+  io_writec(out, error);
   io_put(out, '\n');
   print_usage(flags, selfname, out);
-  //call(out, close);
+  call(out, close);
   exit(1);
 }
 
