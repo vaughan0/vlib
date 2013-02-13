@@ -17,9 +17,6 @@ enum {
 void net_register_errors() __attribute__((constructor));
 
 data(NetConn_Impl) {
-  // Shuts down the connection, but does not release any resources.
-  void  (*shutdown)(void* self);
-  // Closes and frees the connection.
   void  (*close)(void* self);
 };
 
@@ -31,7 +28,6 @@ data(NetConn) {
 
 interface(NetListener) {
   NetConn*  (*accept)(void* self);
-  void      (*shutdown)(void* self);
   void      (*close)(void* self);
 };
 
