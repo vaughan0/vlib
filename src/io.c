@@ -453,7 +453,7 @@ static size_t fd_input_read(void* _self, char* dst, size_t n) {
   FDInput* self = _self;
   if (self->eof) return 0;
   ssize_t nread = read(self->fd, dst, n);
-  if (nread == -1) verr_raise_system();
+  if (nread == -1) verr_raise(errno == EAGAIN ? VERR_TIMEOUT : verr_system(errno));
   if (nread == 0) self->eof = true;
   return nread;
 }
@@ -493,7 +493,7 @@ static void fd_output_write(void* _self, const char* src, size_t n) {
   FDOutput* self = _self;
   while (n) {
     ssize_t written = write(self->fd, src, n);
-    if (written == -1) verr_raise_system();
+    if (written == -1) verr_raise(errno == EAGAIN ? VERR_TIMEOUT : verr_system(errno));
     n -= written;
     src += written;
   }

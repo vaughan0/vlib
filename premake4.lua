@@ -8,7 +8,7 @@ solution 'vlib'
   buildoptions { '-std=gnu99', '-fPIC', '-Wno-trampolines', '-Werror' }
   includedirs '.'
 
-  links { 'm' }
+  links { 'm', 'pthread', 'rt' }
 
   configuration 'debug'
     defines { 'DEBUG' }
