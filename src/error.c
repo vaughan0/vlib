@@ -72,14 +72,15 @@ NoDetails:
 
 static const char* general_get_msg(error_t err) {
   switch (err) {
-  case VERR_ARGUMENT:   return "invalid argument";
-  case VERR_MALFORMED:  return "malformed data";
-  case VERR_NOMEM:      return "out of memory";
-  case VERR_ACCESS:     return "permission denied";
-  case VERR_SYSTEM:     return "system error";
-  case VERR_INTERRUPT:  return "operation interrupted";
-  case VERR_STATE:      return "illegal state";
-  case VERR_TIMEOUT:    return "timeout";
+  case VERR_ARGUMENT:     return "invalid argument";
+  case VERR_MALFORMED:    return "malformed data";
+  case VERR_NOMEM:        return "out of memory";
+  case VERR_ACCESS:       return "permission denied";
+  case VERR_SYSTEM:       return "system error";
+  case VERR_INTERRUPT:    return "operation interrupted";
+  case VERR_STATE:        return "illegal state";
+  case VERR_TIMEOUT:      return "timeout";
+  case VERR_UNAVAILABLE:  return "resource unavailable";
   };
   return NULL;
 }
@@ -114,6 +115,8 @@ error_t verr_system(int eno) {
   case ENOMEM:
     return VERR_NOMEM;
   case EAGAIN:
+    return VERR_UNAVAILABLE;
+  case ETIMEDOUT:
     return VERR_TIMEOUT;
   case EFBIG:
   case EIO:

@@ -48,14 +48,15 @@ enum {
 
 // General error codes
 enum {
-  VERR_ARGUMENT   = VERR_MAKE(VERR_PGENERAL, 1),  // invalid argument
-  VERR_MALFORMED  = VERR_MAKE(VERR_PGENERAL, 2),  // malformed data
-  VERR_NOMEM      = VERR_MAKE(VERR_PGENERAL, 3),  // out of memory
-  VERR_ACCESS     = VERR_MAKE(VERR_PGENERAL, 4),  // permission denied
-  VERR_SYSTEM     = VERR_MAKE(VERR_PGENERAL, 5),  // system error (generally from a system call)
-  VERR_INTERRUPT  = VERR_MAKE(VERR_PGENERAL, 6),  // operation interrupted
-  VERR_STATE      = VERR_MAKE(VERR_PGENERAL, 7),  // illegal state
-  VERR_TIMEOUT    = VERR_MAKE(VERR_PGENERAL, 8),  // timeout
+  VERR_ARGUMENT     = VERR_MAKE(VERR_PGENERAL, 1),  // invalid argument
+  VERR_MALFORMED    = VERR_MAKE(VERR_PGENERAL, 2),  // malformed data
+  VERR_NOMEM        = VERR_MAKE(VERR_PGENERAL, 3),  // out of memory
+  VERR_ACCESS       = VERR_MAKE(VERR_PGENERAL, 4),  // permission denied
+  VERR_SYSTEM       = VERR_MAKE(VERR_PGENERAL, 5),  // system error (generally from a system call)
+  VERR_INTERRUPT    = VERR_MAKE(VERR_PGENERAL, 6),  // operation interrupted
+  VERR_STATE        = VERR_MAKE(VERR_PGENERAL, 7),  // illegal state
+  VERR_TIMEOUT      = VERR_MAKE(VERR_PGENERAL, 8),  // timeout
+  VERR_UNAVAILABLE  = VERR_MAKE(VERR_PGENERAL, 9),  // resource unavailable
 };
 
 // IO error codes
