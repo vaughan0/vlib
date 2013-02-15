@@ -58,7 +58,7 @@ void      thread_broadcast(Cond* self);
 
 struct ThreadPool;
 
-// A PoolWorker is tied to a thread and runs jobs.
+// A PoolWorker is responsible for creating per-thread "environments", and running jobs.
 interface(PoolWorker) {
   size_t  (*env_size)(void* self);
   void    (*init_env)(void* self, void* env);
