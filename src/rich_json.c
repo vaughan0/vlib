@@ -52,7 +52,7 @@ data(Parser) {
 };
 
 static rich_Source* json_new_source(void* _, Input* in) {
-  Parser* self = v_malloc(sizeof(Parser));
+  Parser* self = malloc(sizeof(Parser));
   self->base._impl = &source_impl;
   self->in = in;
   self->read_tok = false;
@@ -107,7 +107,7 @@ static void parse_string(Parser* p) {
     ch = io_get(p->in);
   }
   p->curtok.str.slen = p->cbuf->size;
-  p->curtok.str.sval = v_malloc(p->curtok.str.slen);
+  p->curtok.str.sval = malloc(p->curtok.str.slen);
   memcpy(p->curtok.str.sval, p->cbuf->_data, p->curtok.str.slen);
 }
 static void parse_number(Parser* p, int ch) {
@@ -402,7 +402,7 @@ static rich_Sink_Impl sink_impl = {
   .close = sink_close,
 };
 static rich_Sink* json_new_sink(void* _, Output* out) {
-  Dumper* self = v_malloc(sizeof(Dumper));
+  Dumper* self = malloc(sizeof(Dumper));
   self->base._impl = &sink_impl;
   TRY {
     rich_reactor_init(self->reactor, sizeof(Frame));

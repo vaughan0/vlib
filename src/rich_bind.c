@@ -20,7 +20,7 @@ data(BoundSource) {
 static rich_Source_Impl bound_source_impl;
 
 rich_Source* rich_schema_source(rich_Schema* schema, void* from) {
-  BoundSource* self = v_malloc(sizeof(BoundSource));
+  BoundSource* self = malloc(sizeof(BoundSource));
   self->base._impl = &bound_source_impl;
   self->schema = schema;
   self->from = from;
@@ -46,7 +46,7 @@ data(BoundSink) {
 static rich_Sink_Impl bound_sink_impl;
 
 rich_Sink* rich_bind(rich_Schema* schema, void* to) {
-  BoundSink* sink = v_malloc(sizeof(BoundSink));
+  BoundSink* sink = malloc(sizeof(BoundSink));
   sink->base._impl = &bound_sink_impl;
   sink->schema = schema;
   memset(to, 0, call(schema, data_size));
@@ -164,7 +164,7 @@ static void string_sink(void* _self, rich_Reactor* r, rich_Atom atom, void* data
   if (atom == RICH_STRING) {
     rich_String* from = data;
     to->sz = from->sz;
-    to->data = v_malloc(from->sz);
+    to->data = malloc(from->sz);
     memcpy(to->data, from->data, from->sz);
   } else if (atom == RICH_NIL) {
     to->sz = 0;
@@ -197,7 +197,7 @@ static void cstring_sink(void* _self, rich_Reactor* r, rich_Atom atom, void* dat
   char** to = ((rich_Frame*)r->data)->to;
   if (atom == RICH_STRING) {
     rich_String* from = data;
-    *to = v_malloc(from->sz + 1);
+    *to = malloc(from->sz + 1);
     memcpy(*to, from->data, from->sz);
     (*to)[from->sz] = 0;
   } else if (atom == RICH_NIL) {
@@ -278,7 +278,7 @@ data(VectorSchema) {
 };
 
 rich_Schema* rich_schema_vector(rich_Schema* of) {
-  VectorSchema* self = v_malloc(sizeof(VectorSchema));
+  VectorSchema* self = malloc(sizeof(VectorSchema));
   self->base._impl = &vector_impl;
   self->of = of;
   return &self->base;
@@ -339,7 +339,7 @@ data(HashtableSchema) {
 };
 
 rich_Schema* rich_schema_hashtable(rich_Schema* of) {
-  HashtableSchema* self = v_malloc(sizeof(HashtableSchema));
+  HashtableSchema* self = malloc(sizeof(HashtableSchema));
   self->base._impl = &hashtable_impl;
   self->of = of;
   return &self->base;
@@ -364,7 +364,7 @@ static void hashtable_sink(void* _self, rich_Reactor* r, rich_Atom atom, void* a
     if (hashtable_get(to, key) != NULL) RAISE(MALFORMED);
     rich_String copy;
     copy.sz = key->sz;
-    copy.data = v_malloc(key->sz);
+    copy.data = malloc(key->sz);
     memcpy(copy.data, key->data, key->sz);
     TRY {
       void* elem = hashtable_insert(to, &copy);
@@ -424,7 +424,7 @@ data(StructField) {
 };
 
 rich_Schema* rich_schema_struct(size_t sz) {
-  StructSchema* self = v_malloc(sizeof(StructSchema));
+  StructSchema* self = malloc(sizeof(StructSchema));
   self->base._impl = &struct_impl;
   self->data_size = sz;
   self->ignore_unknown = false;
@@ -451,7 +451,7 @@ void rich_struct_register(void* _self, rich_String* name, size_t offset, rich_Sc
 
   field->name.sz = name->sz;
   field->name.data = NULL;
-  field->name.data = v_malloc(name->sz);
+  field->name.data = malloc(name->sz);
   memcpy(field->name.data, name->data, name->sz);
 }
 void rich_struct_cregister(void* _self, const char* name, size_t offset, rich_Schema* schema) {
@@ -551,7 +551,7 @@ data(TupleField) {
 };
 
 rich_Schema* rich_schema_tuple(size_t struct_size) {
-  TupleSchema* self = v_malloc(sizeof(TupleSchema));
+  TupleSchema* self = malloc(sizeof(TupleSchema));
   self->base._impl = &tuple_impl;
   self->data_size = struct_size;
   vector_init(self->elems, sizeof(TupleField), 7);
@@ -626,7 +626,7 @@ data(PointerSchema) {
 };
 
 rich_Schema* rich_schema_pointer(rich_Schema* sub) {
-  PointerSchema* self = v_malloc(sizeof(PointerSchema));
+  PointerSchema* self = malloc(sizeof(PointerSchema));
   self->base._impl = &pointer_impl;
   self->sub = sub;
   return &self->base;
@@ -640,7 +640,7 @@ static void pointer_sink(void* _self, rich_Reactor* r, rich_Atom atom, void* ato
     rich_reactor_pop(r);
   } else {
     size_t sz = call(self->sub, data_size);
-    *to = v_malloc(sz);
+    *to = malloc(sz);
     memset(*to, 0, sz);
     rich_reactor_pop(r);
     rich_schema_push(r, self->sub, *to);

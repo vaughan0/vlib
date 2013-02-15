@@ -29,7 +29,7 @@ void* add_flag(Flags* self, void* ptr, FlagType* type, const char* name, const c
   flag->name = name;
   flag->help = help;
   flag->type = type;
-  flag->default_value = v_malloc(type->size);
+  flag->default_value = malloc(type->size);
   flag->ptr = ptr;
   return flag->default_value;
 }

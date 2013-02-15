@@ -90,16 +90,4 @@ void    verr_print_stacktrace();
 #define FINALLY _func;}); _cleanup = ({ void _func()
 #define ETRY _func;}); verr_try(_action, _handle, _cleanup); }
 
-// Safe memory allocation
-static inline void* v_malloc(size_t sz) {
-  void* ptr = malloc(sz);
-  if (!ptr) verr_raise(VERR_NOMEM);
-  return ptr;
-}
-static inline void* v_realloc(void* ptr, size_t sz) {
-  ptr = realloc(ptr, sz);
-  if (!ptr && sz != 0) verr_raise(VERR_NOMEM);
-  return ptr;
-}
-
 #endif /* ERROR_H_0CCB7725EEA9D5 */

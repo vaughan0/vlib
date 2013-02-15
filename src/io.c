@@ -111,7 +111,7 @@ data(StringInput) {
 static Input_Impl string_input_impl;
 
 Input* string_input_new(const char* src, size_t sz) {
-  StringInput* self = v_malloc(sizeof(StringInput));
+  StringInput* self = malloc(sizeof(StringInput));
   self->base._impl = &string_input_impl;
   self->size = sz;
   self->offset = 0;
@@ -169,7 +169,7 @@ data(StringOutput) {
 static Output_Impl string_output_impl;
 
 Output* string_output_new(size_t initcap) {
-  StringOutput* self = v_malloc(sizeof(StringOutput));
+  StringOutput* self = malloc(sizeof(StringOutput));
   self->base._impl = &string_output_impl;
   self->offset = 0;
   self->first = malloc(sizeof(Piece) + initcap);
@@ -185,7 +185,7 @@ Output* string_output_new(size_t initcap) {
 
 static void make_piece(StringOutput* self) {
   size_t sz = self->last->size * 2;
-  Piece* newpiece = v_malloc(sizeof(Piece) + sz);
+  Piece* newpiece = malloc(sizeof(Piece) + sz);
   newpiece->size = sz;
   newpiece->next = NULL;
   self->offset = 0;
@@ -238,7 +238,7 @@ const char* string_output_data(Output* _self, size_t* store_size) {
       total += p->size;
     }
 
-    Piece* bigone = v_malloc(sizeof(Piece) + total);
+    Piece* bigone = malloc(sizeof(Piece) + total);
     bigone->size = total;
     bigone->next = NULL;
     
@@ -337,7 +337,7 @@ static Input_Impl limited_impl = {
   .close = limited_close,
 };
 Input* limited_input_new(Input* in, size_t limit) {
-  LimitedInput* self = v_malloc(sizeof(LimitedInput));
+  LimitedInput* self = malloc(sizeof(LimitedInput));
   self->base._impl = &limited_impl;
   self->in = in;
   self->limit = limit;
@@ -356,7 +356,7 @@ data(FileInput) {
 static Input_Impl file_input_impl;
 
 Input* file_input_new(FILE* file, bool close) {
-  FileInput* self = v_malloc(sizeof(FileInput));
+  FileInput* self = malloc(sizeof(FileInput));
   self->base._impl = &file_input_impl;
   self->file = file;
   self->close = close;
@@ -398,7 +398,7 @@ data(FileOutput) {
 static Output_Impl file_output_impl;
 
 Output* file_output_new(FILE* file, bool close) {
-  FileOutput* self = v_malloc(sizeof(FileOutput));
+  FileOutput* self = malloc(sizeof(FileOutput));
   self->base._impl = &file_output_impl;
   self->file = file;
   self->close = close;
@@ -441,7 +441,7 @@ data(FDInput) {
 static Input_Impl fd_input_impl;
 
 Input* fd_input_new(int fd, bool close) {
-  FDInput* self = v_malloc(sizeof(FDInput));
+  FDInput* self = malloc(sizeof(FDInput));
   self->base._impl = &fd_input_impl;
   self->fd = fd;
   self->eof = false;
@@ -482,7 +482,7 @@ data(FDOutput) {
 static Output_Impl fd_output_impl;
 
 Output* fd_output_new(int fd, bool close) {
-  FDOutput* self = v_malloc(sizeof(FDOutput));
+  FDOutput* self = malloc(sizeof(FDOutput));
   self->base._impl = &fd_output_impl;
   self->fd = fd;
   self->close = close;
@@ -547,7 +547,7 @@ static Input_Impl unclosable_input_impl = {
 };
 
 Input* unclosable_input_new(Input* wrap) {
-  UnclosableInput* self = v_malloc(sizeof(UnclosableInput));
+  UnclosableInput* self = malloc(sizeof(UnclosableInput));
   self->base._impl = &unclosable_input_impl;
   self->wrap = wrap;
   return &self->base;
@@ -587,7 +587,7 @@ static Output_Impl unclosable_output_impl = {
 };
 
 Output* unclosable_output_new(Output* wrap) {
-  UnclosableOutput* self = v_malloc(sizeof(UnclosableOutput));
+  UnclosableOutput* self = malloc(sizeof(UnclosableOutput));
   self->base._impl = &unclosable_output_impl;
   self->wrap = wrap;
   return &self->base;

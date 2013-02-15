@@ -7,7 +7,7 @@
 #include <vlib/error.h>
 
 Buffer* buffer_new(size_t cap) {
-  Buffer* self = v_malloc(sizeof(Buffer) + cap);
+  Buffer* self = malloc(sizeof(Buffer) + cap);
   self->size = cap;
   self->read = 0;
   self->write = 0;

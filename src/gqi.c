@@ -16,7 +16,7 @@ void gqis_init_static(GQI_String* str, const char* data, size_t sz) {
   str->refs = 2;
 }
 void gqis_init_copy(GQI_String* str, const char* data, size_t sz) {
-  str->str = v_malloc(sz);
+  str->str = malloc(sz);
   memcpy((char*)str->str, data, sz);
   str->sz = sz;
   str->refs = 1;
@@ -132,7 +132,7 @@ static GQI_Impl default_impl = {
 };
 
 GQI* gqi_new_default(const GQI_String* value) {
-  GQI_Value* self = v_malloc(sizeof(GQI_Value) + value->sz);
+  GQI_Value* self = malloc(sizeof(GQI_Value) + value->sz);
   gqi_init(self, &default_impl);
   self->sz = value->sz;
   memcpy(self->value, value->str, value->sz);
@@ -155,7 +155,7 @@ static GQI_Impl value_impl = {
 };
 
 GQI* gqi_new_value(const GQI_String* value) {
-  GQI_Value* self = v_malloc(sizeof(GQI_Value) + value->sz);
+  GQI_Value* self = malloc(sizeof(GQI_Value) + value->sz);
   gqi_init(self, &value_impl);
   self->sz = value->sz;
   memcpy(self->value, value->str, value->sz);
@@ -209,7 +209,7 @@ static GQI_Impl mux_impl = {
 };
 
 GQI* gqi_new_mux() {
-  GQI_Mux* self = v_malloc(sizeof(GQI_Mux));
+  GQI_Mux* self = malloc(sizeof(GQI_Mux));
   gqi_init(self, &mux_impl);
   self->first = NULL;
   self->last = NULL;
@@ -218,7 +218,7 @@ GQI* gqi_new_mux() {
 void gqi_mux_register(void* _self, const GQI_String* prefix, GQI* delegate) {
   GQI_Mux* self = _self;
 
-  MuxEntry* entry = v_malloc(sizeof(MuxEntry) + prefix->sz);
+  MuxEntry* entry = malloc(sizeof(MuxEntry) + prefix->sz);
   entry->next = NULL;
   entry->delegate = delegate;
   gqi_acquire(delegate);
@@ -277,7 +277,7 @@ static GQI_Impl first_impl = {
 };
 
 GQI* gqi_new_first() {
-  GQI_First* self = v_malloc(sizeof(GQI_First));
+  GQI_First* self = malloc(sizeof(GQI_First));
   gqi_init(self, &first_impl);
   self->root = NULL;
   self->last = NULL;
@@ -286,7 +286,7 @@ GQI* gqi_new_first() {
 void gqi_first_add(void* _self, GQI* instance) {
   GQI_First* self = _self;
 
-  FirstEntry* entry = v_malloc(sizeof(FirstEntry));
+  FirstEntry* entry = malloc(sizeof(FirstEntry));
   entry->next = NULL;
   entry->instance = instance;
   gqi_acquire(instance);
@@ -367,7 +367,7 @@ static GQI_Impl memoize_impl = {
 };
 
 GQI* gqi_new_memoize(GQI* backend) {
-  GQI_Memoize* self = v_malloc(sizeof(GQI_Memoize));
+  GQI_Memoize* self = malloc(sizeof(GQI_Memoize));
   gqi_init(self, &memoize_impl);
   self->backend = backend;
   gqi_acquire(backend);
