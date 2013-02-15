@@ -117,21 +117,21 @@ void  thread_broadcast(Cond* self) {
 data(Worker) {
   Cond        cond[1];
   ThreadPool* pool;
-  void*       env;
   bool        ready;
   void*       next_job;
+  char        env[];
 };
 
 static void* worker_run(void* self);
 
 // Spawns a new worker in the background
 static void spawn_worker(ThreadPool* pool) {
-  Worker* worker = malloc(sizeof(Worker));
+  Worker* worker = malloc(sizeof(Worker) + call(pool->worker, env_size));
   thread_cond_init(worker->cond);
   worker->pool = pool;
-  worker->env = call(pool->worker, create_env);
   worker->ready = false;
   worker->next_job = NULL;
+  call(pool->worker, init_env, worker->env);
   *(Worker**)vector_push(pool->idle) = worker;
   thread_t id = thread_spawn(worker_run, worker);
   thread_detach(id);
@@ -179,10 +179,13 @@ void threadpool_close(ThreadPool* self) {
   // Terminate all workers
   thread_lock(self);
   while (self->total_threads > 0) {
-    Worker* worker = wait_for_worker(self, -1);
-    call(self->worker, close_env, worker->env);
-    dispatch_worker(worker, NULL);
-    self->total_threads--;
+    if (self->idle->size > 0) {
+      Worker* worker = *(Worker**)vector_back(self->idle);
+      vector_pop(self->idle);
+      dispatch_worker(worker, NULL);
+    } else {
+      thread_wait(self->cond, -1);
+    }
   }
   thread_unlock(self);
   // Cleanup resources
@@ -232,17 +235,21 @@ static void* worker_run(void* _self) {
       thread_signal(self->pool->cond);
       thread_unlock(self->pool);
     } else {
-      call(self->pool->worker, close_env, self->env);
-      self->pool->total_threads--;
       thread_unlock(self->pool);
       break;
     }
 
   }
 
+  call(self->pool->worker, close_env, self->env);
+
+  thread_lock(self->pool);
+  self->pool->total_threads--;
+  thread_signal(self->pool->cond);
+  thread_unlock(self->pool);
+
   thread_cond_close(self->cond);
   free(self);
-
   verr_thread_cleanup();
   return NULL;
 }

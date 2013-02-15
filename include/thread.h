@@ -60,10 +60,11 @@ struct ThreadPool;
 
 // A PoolWorker is tied to a thread and runs jobs.
 interface(PoolWorker) {
-  void* (*create_env)(void* self);
-  void  (*close_env)(void* self, void* env);
-  void  (*work)(void* self, void* env, void* job);
-  void  (*close)(void* self);
+  size_t  (*env_size)(void* self);
+  void    (*init_env)(void* self, void* env);
+  void    (*close_env)(void* self, void* env);
+  void    (*work)(void* self, void* env, void* job);
+  void    (*close)(void* self);
 };
 
 // A PoolManager is responsible for governing how many threads are active at any time.
