@@ -11,7 +11,7 @@ void vector_init(Vector* v, size_t elemsz, size_t cap) {
   v->elemsz = elemsz;
   v->_cap = cap;
   v->_data = NULL;
-  v->_data = v_malloc(elemsz * cap);
+  v->_data = malloc(elemsz * cap);
 }
 void vector_close(Vector* v) {
   if (v->_data) free(v->_data);
@@ -21,7 +21,7 @@ void* vector_push(Vector* v) {
   // Check capacity
   if (v->_cap == v->size) {
     v->_cap *= 2;
-    v->_data = v_realloc(v->_data, (v->_cap * v->elemsz));
+    v->_data = realloc(v->_data, (v->_cap * v->elemsz));
   }
   return v->_data + (v->size++ * v->elemsz);
 }

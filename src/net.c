@@ -75,7 +75,7 @@ static NetConn_Impl tcp_conn_impl;
 static NetConn* tcp_conn_new(int fd) {
   TCPConn* self;
   TRY {
-    self = v_malloc(sizeof(TCPConn));
+    self = malloc(sizeof(TCPConn));
     self->base._impl = &tcp_conn_impl;
     self->base.input = unclosable_input_new(fd_input_new(fd, false));
     self->base.output = unclosable_output_new(fd_output_new(fd, false));
@@ -132,7 +132,7 @@ NetListener* net_listen_tcp(const char* addr) {
   freeaddrinfo(result);
   TCPListener* self;
   TRY {
-    self = v_malloc(sizeof(TCPListener));
+    self = malloc(sizeof(TCPListener));
   } CATCH(err) {
     close(sock);
     verr_raise(err);
@@ -152,7 +152,7 @@ Error:
 
 static NetConn* tcp_accept(void* _self) {
   TCPListener* self = _self;
-  TCPConn* conn = v_malloc(sizeof(TCPConn));
+  TCPConn* conn = malloc(sizeof(TCPConn));
 
   int client = accept(self->socket, NULL, NULL);
   if (client == -1) {

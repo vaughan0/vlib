@@ -34,8 +34,8 @@ data(Lock) {
   pthread_mutex_t _mutex[1];
 };
 
-void      thread_init_lock(Lock* self);
-void      thread_close_lock(Lock* self);
+void      thread_lock_init(Lock* self);
+void      thread_lock_close(Lock* self);
 void      thread_lock(void* self);
 void      thread_unlock(void* self);
 
@@ -48,8 +48,8 @@ data(Cond) {
   pthread_cond_t _cond[1];
 };
 
-void      thread_init_cond(Cond* self);
-void      thread_close_cond(Cond* self);
+void      thread_cond_init(Cond* self);
+void      thread_cond_close(Cond* self);
 bool      thread_wait(Cond* self, Duration timeout);  // Returns false if the operation times out
 void      thread_signal(Cond* self);
 void      thread_broadcast(Cond* self);
@@ -58,53 +58,39 @@ void      thread_broadcast(Cond* self);
 
 struct ThreadPool;
 
-// A PoolWorker is tied to a thread and runs jobs.
+// A PoolWorker is responsible for creating per-thread "environments", and running jobs.
 interface(PoolWorker) {
-  void  (*work)(void* self, void* arg);
-  void  (*close)(void* self);
+  size_t  (*env_size)(void* self);
+  void    (*init_env)(void* self, void* env);
+  void    (*close_env)(void* self, void* env);
+  void    (*work)(void* self, void* env, void* job);
+  void    (*close)(void* self);
 };
-
-// A PoolFactory is a thread-safe interface that creates PoolWorkers when new threads are spawned.
-interface(PoolFactory) {
-  PoolWorker* (*create_worker)(void* self);
-  void  (*close)(void* self);
-};
-
-interface(Runnable) {
-  void  (*run)(void* self);
-};
-
-// A PoolFactory that treats its arguments as Runnables and executes them.
-extern PoolFactory  poolfactory_runnable[1];
-// A PoolFactory that treats its arguments as function pointers of type void (*)() and calls them.
-extern PoolFactory  poolfactory_function[1];
 
 // A PoolManager is responsible for governing how many threads are active at any time.
 interface(PoolManager) {
-  // Returns the number of threads to spawn when the ThreadPool is created.
-  int   (*initial_threads)(void* self);
-  // Returns true if a new thread should be spawned.
-  bool  (*thread_needed)(void* self, struct ThreadPool* pool);
-  // Returns true if an idle thread should be terminated.
-  bool  (*thread_idle)(void* self, struct ThreadPool* pool);
+  // Returns a negative number if a thread should be terminated, a positive number if a new
+  // thread should be spawned, or zero if no threads need to be spawned or terminated.
+  int   (*decide)(void* self, int idle, int total);
   void  (*close)(void* self);
 };
 
 PoolManager*    poolmanager_new_basic(unsigned min_idle, unsigned max_idle, unsigned max_total);
 
 data(ThreadPool) {
-  Cond          _cond[1];
+  Cond          cond[1];
   PoolManager*  manager;
-  PoolFactory*  factory;
+  PoolWorker*   worker;
   unsigned      total_threads;
-  unsigned      idle_threads;
-  Vector        _idle[1];
+  Vector        idle[1];
 };
 
-void  threadpool_init(ThreadPool* self, PoolManager* manager, PoolFactory* factory);
+void  threadpool_init(ThreadPool* self, PoolManager* manager, PoolWorker* worker);
 void  threadpool_close(ThreadPool* self);
 
-bool  threadpool_dispatch(ThreadPool* self, void* arg, Duration timeout);
+// Waits for an idle thread to become available and then dispatches the job.
+// Returns false if the timeout is reached. Use -1 for no timeout.
+bool  threadpool_dispatch(ThreadPool* self, void* job, Duration timeout);
 
 #endif /* THREAD_H_C3F0CA05839339 */
 

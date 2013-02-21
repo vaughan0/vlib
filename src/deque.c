@@ -11,7 +11,7 @@ void deque_init(Deque* d, size_t elemsz, size_t capacity) {
   d->_frontr = 0;
   d->_backw = 0;
   d->_data = NULL;
-  d->_data = v_malloc(elemsz * capacity);
+  d->_data = malloc(elemsz * capacity);
 }
 void deque_close(Deque* d) {
   if (d->_data) free(d->_data);
@@ -34,7 +34,7 @@ static inline int fix(Deque* d, int index) {
 static inline void check_cap(Deque* d) {
   if (fix(d, d->_frontr-1) == d->_backw) {
     size_t newcap = d->_cap * 2;
-    d->_data = v_realloc(d->_data, newcap * d->elemsz);
+    d->_data = realloc(d->_data, newcap * d->elemsz);
     if (d->_frontr > d->_backw) {
       // Shift elements to the end of the new memory
       int newfront = d->_frontr + d->_cap;
