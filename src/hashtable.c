@@ -169,3 +169,8 @@ int equaler_str(const void* a, const void* b, size_t sz) {
   const char* sb = *(const char**)b;
   return (sa == sb) ? 0 : strcmp(sa, sb);
 }
+int equaler_ptr(const void* _a, const void* _b, size_t sz) {
+  const void* a = *(const void**)_a;
+  const void* b = *(const void**)_b;
+  return (a == b) ? 0 : -1;
+}
