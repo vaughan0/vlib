@@ -52,9 +52,7 @@ void* hashtable_insert(Hashtable* ht, const void* key);
 void hashtable_remove(Hashtable* ht, const void* key, void* oldkey);
 
 /* Iteration (see llist.h for how this works) */
-
 void  hashtable_iter(Hashtable* ht, int (*callback)(void* key, void* data));
-
 enum {
   HT_CONTINUE = 0,
   HT_BREAK    = 1,
