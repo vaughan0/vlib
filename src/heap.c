@@ -116,3 +116,10 @@ void heap_update(Heap* h, HeapRef ref) {
   siftup(h, index);
   siftdown(h, index);
 }
+
+void heap_iter(Heap* h, bool (*callback)(void* elem)) {
+  for (unsigned i = 0; i < h->size; i++) {
+    void* data = get_data(h, i);
+    if (!callback(data)) break;
+  }
+}

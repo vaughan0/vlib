@@ -35,5 +35,9 @@ void*     heap_get(Heap* h, HeapRef ref);
 void      heap_remove(Heap* h, HeapRef ref);
 void      heap_update(Heap* h, HeapRef ref);
 
+// Iterates through the heap, calling the callback with a pointer to each element.
+// If the callback returns false at any point, then the iteration will stop and heap_iter will return.
+void      heap_iter(Heap* h, bool (*callback)(void* elem));
+
 #endif /* HEAP_H_CEF19AB4CFA72A */
 
