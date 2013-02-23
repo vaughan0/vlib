@@ -119,6 +119,7 @@ void heap_update(Heap* h, HeapRef ref) {
 
 void heap_iter(Heap* h, bool (*callback)(void* elem)) {
   for (unsigned i = 0; i < h->size; i++) {
-    if (!callback(get_data(h, i))) break;
+    void* data = get_data(h, i);
+    if (!callback(data)) break;
   }
 }

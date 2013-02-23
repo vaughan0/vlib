@@ -1,6 +1,10 @@
 #ifndef STD_H_95ECC92A271C4F
 #define STD_H_95ECC92A271C4F
 
+#include <stdint.h>
+#include <stddef.h>
+#include <stdbool.h>
+
 #define interface(name) \
   typedef struct name##_Impl name##_Impl; \
   typedef struct name { \
