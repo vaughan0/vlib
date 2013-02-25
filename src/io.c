@@ -99,6 +99,16 @@ size_t io_copyn(Input* from, Output* to, size_t n) {
   return copied;
 }
 
+void io_readall(Input* input, void* _dst, size_t n) {
+  char* dst = _dst;
+  while (n) {
+    size_t read = io_read(input, dst, n);
+    if (read == 0) RAISE(EOF);
+    n -= read;
+    dst += read;
+  }
+}
+
 /* StringInput */
 
 data(StringInput) {
