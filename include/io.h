@@ -38,6 +38,8 @@ void        io_flush(Output* output);
 size_t      io_copy(Input* from, Output* to);
 size_t      io_copyn(Input* from, Output* to, size_t max);
 
+void        io_readall(Input* input, void* dst, size_t sz);
+
 static inline void io_writec(Output* out, const char* str) {
   io_write(out, str, strlen(str));
 }

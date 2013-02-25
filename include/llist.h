@@ -37,7 +37,7 @@ void  llist_iter(LList* l, bool forward, int (*callback)(void* elem));
 enum {
   LLIST_CONTINUE  = 0,  // continue iterating
   LLIST_BREAK     = 1,  // stop iterating
-  LLIST_REMOVE    = 2,  // used in combination with above two: remove element, then continue/break
+  LLIST_REMOVE    = 2,  // used in combination with one of the above: remove element, then continue/break
 };
 
 #endif /* LIST_H_FF9E9C9DC110E0 */
