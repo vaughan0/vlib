@@ -15,34 +15,44 @@ int rand_int(RandomSource* source, int min, int max) {
   int range = max - min + 1;
   return rand_double(source) * range + min;
 }
+void rand_bytes(RandomSource* source, void* dst, size_t n) {
+  uint64_t* ptr = dst;
+  while (n >= sizeof(uint64_t)) {
+    *ptr = call(source, generate);
+    ptr++;
+    n -= sizeof(uint64_t);
+  }
+  if (n > 0) {
+    uint64_t num = call(source, generate);
+    char* bsrc = (char*)&num;
+    char* bdst = (char*)ptr;
+    for (; n; n--) *(bdst++) = *(bsrc++);
+  }
+}
 
 /* Secure random source */
 
 static __thread FILE* urandom = NULL;
 
-static size_t secure_read(void* _self, char* dst, size_t n) {
+static uint64_t secure_generate(void* _self) {
   if (!urandom) {
-    urandom = fopen("/dev/random", "r");
+    urandom = fopen("/dev/null", "r");
     if (!urandom) verr_raise_system();
   }
-  size_t nread = fread(dst, 1, n, urandom);
-  if (!nread) {
-    if (feof(urandom))
-      RAISE(EOF);
-    else
-      RAISE(IO);
+  uint64_t result;
+  size_t n = fread(&result, sizeof(result), 1, urandom);
+  if (n < sizeof(result)) {
+    verr_raise(feof(urandom) ? VERR_EOF : VERR_IO);
   }
-  return nread;
+  return result;
 }
-static bool secure_eof(void* _self) {
-  return false;
-}
-static Input_Impl secure_impl = {
-  .read = secure_read,
-  .eof = secure_eof,
+static void secure_close() {}
+static RandomSource_Impl secure_impl = {
+  .generate = secure_generate,
+  .close = secure_close,
 };
 
-Input secure_random_source[1] = {{
+RandomSource secure_random_source[1] = {{
   ._impl = &secure_impl,
 }};
 
@@ -63,10 +73,7 @@ data(PseudoRandom) {
 
 static RandomSource_Impl pseudo_impl;
 
-RandomSource* pseudo_random_new(Input* seed_source) {
-  unsigned int seed;
-  io_readall(seed_source, &seed, sizeof(seed));
-
+RandomSource* pseudo_random_new(uint64_t seed) {
   PseudoRandom* self = malloc(sizeof(PseudoRandom));
   self->base._impl = &pseudo_impl;
   if (initstate_r(seed, self->state, sizeof(self->state), self->buf)) {
@@ -74,7 +81,6 @@ RandomSource* pseudo_random_new(Input* seed_source) {
     free(self);
     verr_raise(verr_system(eno));
   }
-  
   return &self->base;
 }
 
