@@ -112,7 +112,7 @@ void io_readall(Input* input, void* _dst, size_t n) {
 /* StringInput */
 
 data(StringInput) {
-  Input    base;
+  Input       base;
   size_t      size;
   size_t      offset;
   const char* src;
@@ -123,10 +123,14 @@ static Input_Impl string_input_impl;
 Input* string_input_new(const char* src, size_t sz) {
   StringInput* self = malloc(sizeof(StringInput));
   self->base._impl = &string_input_impl;
+  string_input_reset((Input*)self, src, sz);
+  return &self->base;
+}
+void string_input_reset(Input* _self, const char* src, size_t sz) {
+  StringInput* self = (StringInput*)_self;
+  self->src = src;
   self->size = sz;
   self->offset = 0;
-  self->src = src;
-  return &self->base;
 }
 
 static size_t string_input_read(void* _self, char* dst, size_t n) {

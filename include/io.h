@@ -48,6 +48,7 @@ static inline void io_writec(Output* out, const char* str) {
 /* Some standard IO implementations */
 
 Input*      string_input_new(const char* src, size_t sz);
+void        string_input_reset(Input* string_input, const char* src, size_t sz);
 
 Output*     string_output_new(size_t initcap);
 const char* string_output_data(Output* string_output, size_t* size);
