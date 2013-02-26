@@ -93,6 +93,7 @@ void print_flags(Flags* self, Output* out) {
     for (int i = n; i < 20; i++) io_put(out, ' ');
     io_writelit(out, "  ");
     io_writec(out, flag->help);
+    io_put(out, '\n');
     return HT_CONTINUE;
   }
   hashtable_iter(self->flags, print_flag);
