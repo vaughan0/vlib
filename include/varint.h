@@ -27,7 +27,7 @@ void      int_to_varint(int64_t i, Varint* v);
 // with enough capacity to hold the data. In either case, to->len will indicate the number of bytes read from src.
 bool    varint_decode(Varint* to, Input* src);
 
-// Encodes 
+// Encodes a varint to an output stream. Exactly v->len bytes will be written.
 void    varint_encode(Varint* v, Output* dst);
 
 #endif /* VARINT_H_EFE975ADE6C81F */
