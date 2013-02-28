@@ -6,7 +6,6 @@
 data(KVDatum) {
   void*   ptr;
   size_t  size;
-  size_t  max;
 };
 
 interface(KVDB) {
