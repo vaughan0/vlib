@@ -371,8 +371,10 @@ Output* memory_output_new(void* dst, size_t sz) {
   self->size = 0;
   return &self->base;
 }
-void memory_output_reset(Output* _self) {
+void memory_output_reset(Output* _self, void* dst, size_t sz) {
   MemOutput* self = (MemOutput*)_self;
+  self->dst = dst;
+  self->max = sz;
   self->size = 0;
 }
 void memory_output_rewind(Output* _self, size_t new_offset) {
