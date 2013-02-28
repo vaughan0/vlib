@@ -1,5 +1,11 @@
 
 solution 'vlib'
+
+  features = {
+    gdbm = {links = 'gdbm'},
+  }
+  dofile 'features.lua'
+
   configurations { 'debug', 'release' }
 
   -- Global config
@@ -10,6 +16,8 @@ solution 'vlib'
 
   links { 'm', 'pthread', 'rt' }
 
+  -- Configurations
+
   configuration 'debug'
     defines { 'DEBUG' }
     flags { 'Symbols', 'ExtraWarnings' }
@@ -17,6 +25,8 @@ solution 'vlib'
   configuration 'release'
     defines { 'NDEBUG' }
     flags { 'Optimize' }
+
+  -- Projects
 
   project 'vlib'
     kind 'StaticLib'
@@ -29,5 +39,3 @@ solution 'vlib'
     targetdir 'test'
     targetname 'run'
     files { 'test/*.c' }
-
-

@@ -5,6 +5,8 @@
 #include <stddef.h>
 #include <stdbool.h>
 
+#include <vlib/config.h>
+
 #define interface(name) \
   typedef struct name##_Impl name##_Impl; \
   typedef struct name { \
