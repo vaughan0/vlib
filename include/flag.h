@@ -16,7 +16,7 @@ data(FlagType) {
   void    (*print)(char buf[64], void* ptr);
 };
 
-typedef void (*UsageFunc)(struct Flags* flags, const char* error, const char* selfname);
+typedef void (*UsageFunc)(struct Flags* flags, const char* error);
 
 data(Flag) {
   const char* name;
@@ -29,15 +29,19 @@ data(Flag) {
 data(Flags) {
   UsageFunc   usage;
   Hashtable   flags[1];
+  const char* name;
 };
 
 void  flags_init(Flags* self);
 void  flags_close(Flags* self);
-void  print_usage(Flags* self, const char* name, Output* out);
+
+void  print_usage(Flags* self, Output* out);
 void  print_flags(Flags* self, Output* out);
+static inline void flags_error(Flags* self, const char* error) {
+  self->usage(self, error);
+}
 
 void  add_flag(Flags* self, void* ptr, FlagType* type, const char* name, const char* help);
-
 bool  flags_parse(Flags* self, int argc, char* const argv[], Vector* extra);
 
 /* Flag types */

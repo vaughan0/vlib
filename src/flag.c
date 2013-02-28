@@ -8,11 +8,12 @@
 #include <vlib/error.h>
 #include <vlib/bufio.h>
 
-static void flag_default_usage(Flags* self, const char* error, const char* selfname);
+static void flag_default_usage(Flags* self, const char* error);
 
 void flags_init(Flags* self) {
   hashtable_init(self->flags, hasher_fnv64str, equaler_str, sizeof(const char*), sizeof(Flag));
   self->usage = flag_default_usage;
+  self->name = NULL;
 }
 void flags_close(Flags* self) {
   int free_flag(void* _key, void* _data) {
@@ -36,6 +37,7 @@ void add_flag(Flags* self, void* ptr, FlagType* type, const char* name, const ch
 
 bool flags_parse(Flags* self, int argc, char* const argv[], Vector* extra) {
   char error[256];
+  if (!self->name) self->name = argv[0];
 
   // Initialize all flags to their default values
   int init_flag(void* _key, void* _data) {
@@ -76,7 +78,7 @@ bool flags_parse(Flags* self, int argc, char* const argv[], Vector* extra) {
   return true;
 
 Usage:
-  if (self->usage) self->usage(self, error, argv[0]);
+  if (self->usage) self->usage(self, error);
   return false;
 }
 
@@ -98,18 +100,18 @@ void print_flags(Flags* self, Output* out) {
   }
   hashtable_iter(self->flags, print_flag);
 }
-void print_usage(Flags* self, const char* name, Output* out) {
+void print_usage(Flags* self, Output* out) {
   io_writelit(out, "Usage: ");
-  io_writec(out, name);
+  io_writec(out, self->name);
   io_put(out, '\n');
   print_flags(self, out);
 }
 
-void flag_default_usage(Flags* flags, const char* error, const char* selfname) {
+static void flag_default_usage(Flags* flags, const char* error) {
   Output* out = buf_output_new(file_output_new(stderr, false), 1024);
   io_writec(out, error);
   io_put(out, '\n');
-  print_usage(flags, selfname, out);
+  print_usage(flags, out);
   call(out, close);
   exit(1);
 }
@@ -140,7 +142,7 @@ static bool string_parse(const char* src, void* ptr) {
   return true;
 }
 static void string_print(char buf[64], void* ptr) {
-  snprintf(buf, sizeof(buf), "%s", *(const char**)ptr);
+  snprintf(buf, sizeof(buf), "%s", *(const char**)ptr ?: "(null)");
 }
 FlagType flagtype_string[1] = {{
   .size = sizeof(const char*),
