@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <stdarg.h>
 
 #include <vlib/flag.h>
 #include <vlib/error.h>
@@ -114,6 +115,18 @@ static void flag_default_usage(Flags* flags, const char* error) {
   print_usage(flags, out);
   call(out, close);
   exit(1);
+}
+
+void flags_error(Flags* self, const char* error) {
+  self->usage(self, error);
+}
+void flags_errorf(Flags* self, const char* fmt, ...) {
+  char error[256];
+  va_list ap;
+  va_start(ap, fmt);
+  vsnprintf(error, sizeof(error), fmt, ap);
+  va_end(ap);
+  flags_error(self, error);
 }
 
 /* Flag types */

@@ -37,9 +37,8 @@ void  flags_close(Flags* self);
 
 void  print_usage(Flags* self, Output* out);
 void  print_flags(Flags* self, Output* out);
-static inline void flags_error(Flags* self, const char* error) {
-  self->usage(self, error);
-}
+void  flags_error(Flags* self, const char* error);
+void  flags_errorf(Flags* self, const char* fmt, ...);
 
 void  add_flag(Flags* self, void* ptr, FlagType* type, const char* name, const char* help);
 bool  flags_parse(Flags* self, int argc, char* const argv[], Vector* extra);
