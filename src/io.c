@@ -109,6 +109,58 @@ void io_readall(Input* input, void* _dst, size_t n) {
   }
 }
 
+void io_put_int8(Output* out, int8_t i) {
+  io_put(out, (char)i);
+}
+void io_put_int16(Output* out, int16_t i) {
+  char bytes[] = {i >> 8, i};
+  io_write(out, bytes, 2);
+}
+void io_put_int32(Output* out, int32_t i) {
+  char bytes[] = {i >> 24, i >> 16, i >> 8, i};
+  io_write(out, bytes, 4);
+}
+void io_put_int64(Output* out, int64_t i) {
+  char bytes[] = {
+    i >> 56, i >> 48, i >> 40, i >> 32,
+    i >> 24, i >> 16, i >> 8, i
+  };
+  io_write(out, bytes, 8);
+}
+
+static inline uint64_t mustget(Input* in) {
+  int c = io_get(in);
+  if (c == -1) RAISE(EOF);
+  return ((uint64_t)c) & 0xFF;
+}
+
+int8_t  io_get_int8(Input* in) {
+  return mustget(in);
+}
+int16_t io_get_int16(Input* in) {
+  uint64_t a = mustget(in);
+  uint64_t b = mustget(in);
+  return (a << 8) | b;
+}
+int32_t io_get_int32(Input* in) {
+  uint64_t a = mustget(in);
+  uint64_t b = mustget(in);
+  uint64_t c = mustget(in);
+  uint64_t d = mustget(in);
+  return (a << 24) | (b << 16) | (c << 8) | d;
+}
+int64_t io_get_int64(Input* in) {
+  uint64_t a = mustget(in);
+  uint64_t b = mustget(in);
+  uint64_t c = mustget(in);
+  uint64_t d = mustget(in);
+  uint64_t e = mustget(in);
+  uint64_t f = mustget(in);
+  uint64_t g = mustget(in);
+  uint64_t h = mustget(in);
+  return (a << 56) | (b << 48) | (c << 40) | (d << 32) | (e << 24) | (f << 16) | (g << 8) | h;
+}
+
 /* StringInput */
 
 data(StringInput) {

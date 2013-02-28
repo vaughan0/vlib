@@ -110,6 +110,28 @@ static int limited_input_unget() {
   return 0;
 }
 
+static int binary_io_utils() {
+  Output* out = string_output_new(100);
+
+  io_put_int8(out, 0x12);
+  io_put_int16(out, 0x3456);
+  io_put_int32(out, 0x7890ABCDL);
+  io_put_int64(out, 0xDEADBEEF88997755L);
+
+  size_t sz;
+  const char* data = string_output_data(out, &sz);
+  Input* in = string_input_new(data, sz);
+
+  assertEqual(0x12, io_get_int8(in));
+  assertEqual(0x3456, io_get_int16(in));
+  assertEqual(0x7890ABCDL, io_get_int32(in));
+  assertEqual(0xDEADBEEF88997755L, io_get_int64(in));
+
+  call(out, close);
+  call(in, close);
+  return 0;
+}
+
 VLIB_SUITE(io) = {
   VLIB_TEST(string_io_write),
   VLIB_TEST(string_io_put),
@@ -117,6 +139,7 @@ VLIB_SUITE(io) = {
   VLIB_TEST(string_io_reset),
   VLIB_TEST(limited_input),
   VLIB_TEST(limited_input_unget),
+  VLIB_TEST(binary_io_utils),
   VLIB_END,
 };
 
