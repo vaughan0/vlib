@@ -70,7 +70,7 @@ bool flags_parse(Flags* self, int argc, char* const argv[], Vector* extra) {
       if (extra) {
         *(char**)vector_push(extra) = arg;
       } else {
-        snprintf(error, sizeof(error), "Extra argument: %s", arg);
+        snprintf(error, sizeof(error), "Unexpected extra argument: %s", arg);
         goto Usage;
       }
     }
