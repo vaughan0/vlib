@@ -169,14 +169,14 @@ static bool bool_parse(const char* src, void* _ptr) {
     *ptr = true;
     return true;
   }
-  const char* truths[] = {"true", "yes", "on", "1", NULL};
+  const char* truths[] = {"true", "y", "yes", "on", "1", NULL};
   for (int i = 0; truths[i]; i++) {
     if (strcasecmp(truths[i], src) == 0) {
       *ptr = true;
       return true;
     }
   }
-  const char* lies[] = {"false", "no", "off", "0", NULL};
+  const char* lies[] = {"false", "n", "no", "off", "0", NULL};
   for (int i = 0; lies[i]; i++) {
     if (strcasecmp(lies[i], src) == 0) {
       *ptr = false;
