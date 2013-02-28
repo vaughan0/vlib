@@ -25,13 +25,22 @@ interface(KVDB) {
 };
 
 interface(KVOpener) {
+  // Opens and returns an existing table. Returns NULL if the table does not exist.
   KVDB*   (*open)(void* self, const char* table);
+  // Creates a new table, replacing an existing table if there is one.
+  KVDB*   (*create)(void* self, const char* table);
   void    (*close)(void* self);
 };
 
+static inline KVDB* kv_open_create(KVOpener* opener, const char* table) {
+  KVDB* db = call(opener, open, table);
+  return db ?: call(opener, create, table);
+}
+
 #ifdef VLIB_ENABLE_GDBM
 
-KVDB* kv_open_gdbm(const char* file);
+KVDB*     kv_gdbm_open(const char* file, bool create);
+KVOpener* kv_gdbm_opener(const char* prefix);
 
 #endif
 
