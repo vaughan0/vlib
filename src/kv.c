@@ -21,7 +21,7 @@ static KVDB_Impl gdbm_kv_impl;
 KVDB* kv_gdbm_open(const char* file, bool create) {
   GDBM_FILE dbf = gdbm_open((char*)file, 0, create ? GDBM_NEWDB : GDBM_WRITER, 0644, NULL);
   if (!dbf) {
-    if (gdbm_errno == GDBM_FILE_OPEN_ERROR) return NULL;
+    if (gdbm_errno == GDBM_FILE_OPEN_ERROR && create == false) return NULL;
     verr_raise_system();
   }
   GDBM_DB* self = malloc(sizeof(GDBM_DB));
