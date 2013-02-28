@@ -132,6 +132,34 @@ static int binary_io_utils() {
   return 0;
 }
 
+static int memory_output() {
+  const char expect[] = "Hello World!";
+  char buf[20];
+  Output* out = memory_output_new(buf, sizeof(buf));
+  io_write(out, expect, sizeof(expect));
+  size_t sz = memory_output_size(out);
+  assertEqual(sz, sizeof(expect));
+  assertTrue(memcmp(buf, expect, sz) == 0);
+  call(out, close);
+  return 0;
+}
+static int memory_rewind() {
+  char buf[20];
+  Output* out = memory_output_new(buf, sizeof(buf));
+  io_writelit(out, "Hello 0xF345A00D");
+  memory_output_rewind(out, 6);
+  io_writelit(out, "World!");
+  io_put(out, 0);
+
+  size_t sz = memory_output_size(out);
+  const char expect[] = "Hello World!";
+  assertEqual(sz, sizeof(expect));
+  assertTrue(memcmp(buf, expect, sz) == 0);
+
+  call(out, close);
+  return 0;
+}
+
 VLIB_SUITE(io) = {
   VLIB_TEST(string_io_write),
   VLIB_TEST(string_io_put),
@@ -140,6 +168,8 @@ VLIB_SUITE(io) = {
   VLIB_TEST(limited_input),
   VLIB_TEST(limited_input_unget),
   VLIB_TEST(binary_io_utils),
+  VLIB_TEST(memory_output),
+  VLIB_TEST(memory_rewind),
   VLIB_END,
 };
 

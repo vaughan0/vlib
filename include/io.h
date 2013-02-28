@@ -64,6 +64,11 @@ Output*     string_output_new(size_t initcap);
 const char* string_output_data(Output* string_output, size_t* size);
 void        string_output_reset(Output* string_output);
 
+Output*     memory_output_new(void* dst, size_t sz);
+void        memory_output_reset(Output* memory_output);
+void        memory_output_rewind(Output* memory_output, size_t new_offset);
+size_t      memory_output_size(Output* memory_output);
+
 Input*      file_input_new(FILE* f, bool close);
 Output*     file_output_new(FILE* f, bool close);
 

@@ -353,6 +353,57 @@ static Output_Impl string_output_impl = {
   .close = string_output_close,
 };
 
+/* MemOutput */
+
+data(MemOutput) {
+  Output  base;
+  char*   dst;
+  size_t  max;
+  size_t  size;
+};
+static Output_Impl mem_output_impl;
+
+Output* memory_output_new(void* dst, size_t sz) {
+  MemOutput* self = malloc(sizeof(MemOutput));
+  self->base._impl = &mem_output_impl;
+  self->dst = dst;
+  self->max = sz;
+  self->size = 0;
+  return &self->base;
+}
+void memory_output_reset(Output* _self) {
+  MemOutput* self = (MemOutput*)_self;
+  self->size = 0;
+}
+void memory_output_rewind(Output* _self, size_t new_offset) {
+  MemOutput* self = (MemOutput*)_self;
+  self->size = new_offset;
+}
+size_t memory_output_size(Output* _self) {
+  MemOutput* self = (MemOutput*)_self;
+  return self->size;
+}
+
+static void mem_output_write(void* _self, const char* src, size_t n) {
+  MemOutput* self = _self;
+  if (n > self->max - self->size) RAISE(IO);
+  memcpy(self->dst + self->size, src, n);
+  self->size += n;
+}
+static void mem_output_put(void* _self, char ch) {
+  MemOutput* self = _self;
+  if (self->max == self->size) RAISE(IO);
+  self->dst[self->size++] = ch;
+}
+static void mem_output_flush(void* _self) {}
+
+static Output_Impl mem_output_impl = {
+  .write = mem_output_write,
+  .put = mem_output_put,
+  .flush = mem_output_flush,
+  .close = free,
+};
+
 /* Limited input */
 
 data(LimitedInput) {
