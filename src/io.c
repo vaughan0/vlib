@@ -724,7 +724,6 @@ static int null_input_get(void* self) {
   return -1;
 }
 static void null_input_unget(void* self) {}
-static void null_input_close(void* self) {}
 static bool null_input_eof(void* self) {return true;}
 
 static Input_Impl null_input_impl = {
@@ -732,7 +731,7 @@ static Input_Impl null_input_impl = {
   .get = null_input_get,
   .unget = null_input_unget,
   .eof = null_input_eof,
-  .close = null_input_close,
+  .close = null_close,
 };
 
 Input null_input = {
@@ -742,13 +741,12 @@ Input null_input = {
 static void null_output_write(void* self, const char* src, size_t n) {}
 static void null_output_put(void* self, char ch) {}
 static void null_output_flush(void* self) {}
-static void null_output_close(void* self) {}
 
 static Output_Impl null_output_impl = {
   .write = null_output_write,
   .put = null_output_put,
   .flush = null_output_flush,
-  .close = null_output_close,
+  .close = null_close,
 };
 
 Output null_output = {
@@ -765,7 +763,6 @@ static int zero_input_get(void* self) {
   return 0;
 }
 static void zero_input_unget(void* self) {}
-static void zero_input_close(void* self) {}
 static bool zero_input_eof(void* self) {return false;}
 
 static Input_Impl zero_input_impl = {
@@ -773,7 +770,7 @@ static Input_Impl zero_input_impl = {
   .get = zero_input_get,
   .unget = zero_input_unget,
   .eof = zero_input_eof,
-  .close = zero_input_close,
+  .close = null_close,
 };
 
 Input zero_input = {

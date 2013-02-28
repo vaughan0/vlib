@@ -5,6 +5,7 @@
 
 #include <vlib/rich.h>
 #include <vlib/hashtable.h>
+#include <vlib/util.h>
 
 bool rich_string_equal(const rich_String* a, const rich_String* b) {
   if (a->sz != b->sz) return false;
@@ -58,11 +59,9 @@ static void debug_sink(void* _self, rich_Atom atom, void* data) {
   }
 }
 
-static void debug_close(void* _self) {}
-
 static rich_Sink_Impl debug_sink_impl = {
   .sink = debug_sink,
-  .close = debug_close,
+  .close = null_close,
 };
 
 rich_Sink rich_debug_sink = {
@@ -126,9 +125,8 @@ static void reactor_sink(void* _self, rich_Atom atom, void* data) {
   Frame* f = vector_back(self->stack);
   call(f->sink, sink, self, atom, data);
 }
-static void reactor_close(void* _self) {}
 
 static rich_Sink_Impl reactor_impl = {
   .sink = reactor_sink,
-  .close = reactor_close,
+  .close = null_close,
 };

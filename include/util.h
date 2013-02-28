@@ -13,5 +13,8 @@
 	(type *)( (char *)__mptr - offsetof(type,member) );})
 #endif
 
+// Utility function that does nothing. Intended for use as a close method.
+void null_close(void* self);
+
 #endif /* UTIL_H_5DA4072982801B */
 

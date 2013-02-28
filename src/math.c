@@ -5,6 +5,7 @@
 
 #include <vlib/math.h>
 #include <vlib/error.h>
+#include <vlib/util.h>
 
 double rand_double(RandomSource* source) {
   uint64_t n = call(source, generate);
@@ -46,10 +47,9 @@ static uint64_t secure_generate(void* _self) {
   }
   return result;
 }
-static void secure_close() {}
 static RandomSource_Impl secure_impl = {
   .generate = secure_generate,
-  .close = secure_close,
+  .close = null_close,
 };
 
 RandomSource secure_random_source[1] = {{
