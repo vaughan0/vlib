@@ -36,8 +36,7 @@ void  flags_close(Flags* self);
 void  print_usage(Flags* self, const char* name, Output* out);
 void  print_flags(Flags* self, Output* out);
 
-// Adds a flag and returns a pointer to its default value.
-void* add_flag(Flags* self, void* ptr, FlagType* type, const char* name, const char* help);
+void  add_flag(Flags* self, void* ptr, FlagType* type, const char* name, const char* help);
 
 bool  flags_parse(Flags* self, int argc, char* const argv[], Vector* extra);
 

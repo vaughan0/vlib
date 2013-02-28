@@ -24,14 +24,14 @@ void flags_close(Flags* self) {
   hashtable_close(self->flags);
 }
 
-void* add_flag(Flags* self, void* ptr, FlagType* type, const char* name, const char* help) {
+void add_flag(Flags* self, void* ptr, FlagType* type, const char* name, const char* help) {
   Flag* flag = hashtable_insert(self->flags, &name);
   flag->name = name;
   flag->help = help;
   flag->type = type;
   flag->default_value = malloc(type->size);
+  memcpy(flag->default_value, ptr, type->size);
   flag->ptr = ptr;
-  return flag->default_value;
 }
 
 bool flags_parse(Flags* self, int argc, char* const argv[], Vector* extra) {
