@@ -18,8 +18,8 @@
   struct { \
     type value; \
     char extra_data[extra_size]; \
-  } _stack_alloc_##__LINE__; \
-  type* var = &_stack_alloc_##__LINE__.value;
+  } _stack_alloc_##var; \
+  type* var = &_stack_alloc_##var.value;
 
 // Utility function that does nothing. Intended for use as a close method.
 void null_close(void* self);
