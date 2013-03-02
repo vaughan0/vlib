@@ -67,6 +67,10 @@ static void kv_gdbm_store(void* _self, KVDatum key, KVDatum data) {
   };
   gdbm_store(self->dbf, dbkey, dbval, GDBM_REPLACE);
 }
+static void kv_gdbm_sync(void* _self) {
+  GDBM_DB* self = _self;
+  gdbm_sync(self->dbf);
+}
 static void kv_gdbm_close(void* _self) {
   GDBM_DB* self = _self;
   gdbm_close(self->dbf);
@@ -75,6 +79,7 @@ static void kv_gdbm_close(void* _self) {
 static KVDB_Impl gdbm_kv_impl = {
   .lookup = kv_gdbm_lookup,
   .store = kv_gdbm_store,
+  .sync = kv_gdbm_sync,
   .close = kv_gdbm_close,
 };
 

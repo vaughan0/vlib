@@ -21,6 +21,7 @@ interface(KVDB) {
    */
   void    (*lookup)(void* self, KVDatum key, KVDatum* data);
   void    (*store)(void* self, KVDatum key, KVDatum data);
+  void    (*sync)(void* self);
   void    (*close)(void* self);
 };
 
