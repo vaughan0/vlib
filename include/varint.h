@@ -32,6 +32,10 @@ void      int_to_varint(int64_t i, Varint* v);
 // Attempts to decode a Varint. Returns true if successful, false if the varint was not created
 // with enough capacity to hold the data. In either case, to->len will indicate the number of bytes read from src.
 bool    varint_decode(Varint* to, Input* src);
+bool    varint_decodestr(Varint* to, const char* str, size_t sz);
+
+// After reading bytes into v->data and setting v->len, varint_validate can be used to check if the data is well-formed.
+bool    varint_validate(Varint* v);
 
 // Encodes a varint to an output stream. Exactly v->len bytes will be written.
 void    varint_encode(Varint* v, Output* dst);
