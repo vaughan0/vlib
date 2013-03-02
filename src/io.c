@@ -184,6 +184,43 @@ uint64_t io_get_uvarint(Input* in) {
   return varint_to_uint(v);
 }
 
+/* Formatting */
+
+void io_format_init(IOFormatter* self, Output* out, size_t initcap) {
+  assert(initcap > 0);
+  self->out = out;
+  self->_buffer = malloc(initcap);
+  self->_bufsz = initcap;
+}
+void io_format_close(IOFormatter* self) {
+  free(self->_buffer);
+}
+
+void io_format(IOFormatter* self, const char* fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  io_vformat(self, fmt, ap);
+  va_end(ap);
+}
+void io_vformat(IOFormatter* self, const char* fmt, va_list ap) {
+  bool complete = false;
+  int result_size;
+  while (!complete) {
+    va_list copy;
+    va_copy(copy, ap);
+    result_size = vsnprintf(self->_buffer, self->_bufsz, fmt, copy);
+    if (result_size < 0) verr_raise_system();
+    if (result_size < self->_bufsz) {
+      complete = true;
+    } else {
+      // Grow buffer and try again
+      self->_bufsz *= 2;
+      self->_buffer = realloc(self->_buffer, self->_bufsz);
+    }
+  }
+  io_write(self->out, self->_buffer, result_size);
+}
+
 /* StringOutput */
 
 data(Piece) {

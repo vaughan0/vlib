@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdarg.h>
 
 #include <vlib/std.h>
 #include <vlib/error.h>
@@ -60,6 +61,20 @@ int8_t      io_get_int8(Input* in);
 int16_t     io_get_int16(Input* in);
 int32_t     io_get_int32(Input* in);
 int64_t     io_get_int64(Input* in);
+
+/* Formatting */
+
+data(IOFormatter) {
+  Output*   out;
+  char*     _buffer;
+  size_t    _bufsz;
+};
+
+void        io_format_init(IOFormatter* self, Output* out, size_t initcap);
+void        io_format_close(IOFormatter* self);
+
+void        io_format(IOFormatter* self, const char* fmt, ...);
+void        io_vformat(IOFormatter* self, const char* fmt, va_list ap);
 
 /* Some standard IO implementations */
 

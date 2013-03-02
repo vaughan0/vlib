@@ -74,6 +74,33 @@ static int memory_read() {
   call(in, close);
   return 0;
 }
+static int memory_output() {
+  const char expect[] = "Hello World!";
+  char buf[20];
+  Output* out = memory_output_new(buf, sizeof(buf));
+  io_write(out, expect, sizeof(expect));
+  size_t sz = memory_output_size(out);
+  assertEqual(sz, sizeof(expect));
+  assertTrue(memcmp(buf, expect, sz) == 0);
+  call(out, close);
+  return 0;
+}
+static int memory_rewind() {
+  char buf[20];
+  Output* out = memory_output_new(buf, sizeof(buf));
+  io_writelit(out, "Hello 0xF345A00D");
+  memory_output_rewind(out, 6);
+  io_writelit(out, "World!");
+  io_put(out, 0);
+
+  size_t sz = memory_output_size(out);
+  const char expect[] = "Hello World!";
+  assertEqual(sz, sizeof(expect));
+  assertTrue(memcmp(buf, expect, sz) == 0);
+
+  call(out, close);
+  return 0;
+}
 
 static int limited_input() {
   const char* src = "Bob is cool NOT";
@@ -131,30 +158,20 @@ static int binary_io_utils() {
   call(in, close);
   return 0;
 }
+static int formatting() {
+  Output* out = string_output_new(100);
 
-static int memory_output() {
-  const char expect[] = "Hello World!";
-  char buf[20];
-  Output* out = memory_output_new(buf, sizeof(buf));
-  io_write(out, expect, sizeof(expect));
-  size_t sz = memory_output_size(out);
-  assertEqual(sz, sizeof(expect));
-  assertTrue(memcmp(buf, expect, sz) == 0);
-  call(out, close);
-  return 0;
-}
-static int memory_rewind() {
-  char buf[20];
-  Output* out = memory_output_new(buf, sizeof(buf));
-  io_writelit(out, "Hello 0xF345A00D");
-  memory_output_rewind(out, 6);
-  io_writelit(out, "World!");
-  io_put(out, 0);
+  IOFormatter fmt[1];
+  io_format_init(fmt, out, 1);
+  io_format(fmt, "Hello, %s! 12 * 6 = %d", "World", 72);
+  io_writelit(out, " :D");
+  io_format_close(fmt);
 
-  size_t sz = memory_output_size(out);
-  const char expect[] = "Hello World!";
-  assertEqual(sz, sizeof(expect));
-  assertTrue(memcmp(buf, expect, sz) == 0);
+  const char* expect = "Hello, World! 12 * 6 = 72 :D";
+  size_t sz;
+  const char* result = string_output_data(out, &sz);
+  assertEqual(sz, strlen(expect));
+  assertTrue(memcmp(expect, result, strlen(expect)) == 0);
 
   call(out, close);
   return 0;
@@ -165,11 +182,12 @@ VLIB_SUITE(io) = {
   VLIB_TEST(string_io_put),
   VLIB_TEST(string_io_reset),
   VLIB_TEST(memory_read),
+  VLIB_TEST(memory_output),
+  VLIB_TEST(memory_rewind),
   VLIB_TEST(limited_input),
   VLIB_TEST(limited_input_unget),
   VLIB_TEST(binary_io_utils),
-  VLIB_TEST(memory_output),
-  VLIB_TEST(memory_rewind),
+  VLIB_TEST(formatting),
   VLIB_END,
 };
 
