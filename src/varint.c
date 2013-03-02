@@ -77,7 +77,5 @@ bool varint_decode(Varint* to, Input* src) {
 
 void varint_encode(Varint* v, Output* out) {
   assert(v->len > 0);
-  for (unsigned i = 0; i < v->len; i++) {
-    io_put(out, v->digits[i]);
-  }
+  io_write(out, v->data, v->len);
 }

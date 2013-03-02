@@ -10,7 +10,10 @@
 data(Varint) {
   size_t  len;
   size_t  max;
-  uint8_t digits[];
+  union {
+    uint8_t digits[0];
+    char    data[0];
+  };
 };
 
 Varint* varint_new(size_t max_len);
@@ -21,9 +24,9 @@ static inline void varint_free(Varint* v) {
 #define VARINT_STACK(name, size) STACK_ALLOC(Varint, name, sizeof(uint8_t)*(size))
 
 uint64_t  varint_to_uint(Varint* v);
-void      uint_to_varint(uint64_t i, Varint* v);
-
 int64_t   varint_to_int(Varint* v);
+
+void      uint_to_varint(uint64_t i, Varint* v);
 void      int_to_varint(int64_t i, Varint* v);
 
 // Attempts to decode a Varint. Returns true if successful, false if the varint was not created
