@@ -184,62 +184,6 @@ uint64_t io_get_uvarint(Input* in) {
   return varint_to_uint(v);
 }
 
-/* StringInput */
-
-data(StringInput) {
-  Input       base;
-  size_t      size;
-  size_t      offset;
-  const char* src;
-};
-
-static Input_Impl string_input_impl;
-
-Input* string_input_new(const char* src, size_t sz) {
-  StringInput* self = malloc(sizeof(StringInput));
-  self->base._impl = &string_input_impl;
-  string_input_reset((Input*)self, src, sz);
-  return &self->base;
-}
-void string_input_reset(Input* _self, const char* src, size_t sz) {
-  StringInput* self = (StringInput*)_self;
-  self->src = src;
-  self->size = sz;
-  self->offset = 0;
-}
-
-static size_t string_input_read(void* _self, char* dst, size_t n) {
-  StringInput* self = _self;
-  n = MIN(n, self->size - self->offset);
-  memcpy(dst, self->src + self->offset, n);
-  self->offset += n;
-  return n;
-}
-static int string_input_get(void* _self) {
-  StringInput* self = _self;
-  if (self->offset < self->size) {
-    return self->src[self->offset++];
-  }
-  return -1;
-}
-static void string_input_unget(void* _self) {
-  StringInput* self = _self;
-  assert(self->offset > 0);
-  self->offset--;
-}
-static bool string_input_eof(void* _self) {
-  StringInput* self = _self;
-  return self->offset == self->size;
-}
-
-static Input_Impl string_input_impl = {
-  .read = string_input_read,
-  .get = string_input_get,
-  .unget = string_input_unget,
-  .eof = string_input_eof,
-  .close = close_free,
-};
-
 /* StringOutput */
 
 data(Piece) {
@@ -374,6 +318,62 @@ static Output_Impl string_output_impl = {
   .put = string_output_put,
   .flush = string_output_flush,
   .close = string_output_close,
+};
+
+/* MemoryInput */
+
+data(MemoryInput) {
+  Input       base;
+  size_t      size;
+  size_t      offset;
+  const char* src;
+};
+
+static Input_Impl memory_input_impl;
+
+Input* memory_input_new(const char* src, size_t sz) {
+  MemoryInput* self = malloc(sizeof(MemoryInput));
+  self->base._impl = &memory_input_impl;
+  memory_input_reset((Input*)self, src, sz);
+  return &self->base;
+}
+void memory_input_reset(Input* _self, const char* src, size_t sz) {
+  MemoryInput* self = (MemoryInput*)_self;
+  self->src = src;
+  self->size = sz;
+  self->offset = 0;
+}
+
+static size_t memory_input_read(void* _self, char* dst, size_t n) {
+  MemoryInput* self = _self;
+  n = MIN(n, self->size - self->offset);
+  memcpy(dst, self->src + self->offset, n);
+  self->offset += n;
+  return n;
+}
+static int memory_input_get(void* _self) {
+  MemoryInput* self = _self;
+  if (self->offset < self->size) {
+    return self->src[self->offset++];
+  }
+  return -1;
+}
+static void memory_input_unget(void* _self) {
+  MemoryInput* self = _self;
+  assert(self->offset > 0);
+  self->offset--;
+}
+static bool memory_input_eof(void* _self) {
+  MemoryInput* self = _self;
+  return self->offset == self->size;
+}
+
+static Input_Impl memory_input_impl = {
+  .read = memory_input_read,
+  .get = memory_input_get,
+  .unget = memory_input_unget,
+  .eof = memory_input_eof,
+  .close = close_free,
 };
 
 /* MemOutput */

@@ -58,9 +58,9 @@ static int string_io_reset() {
   call(out, close);
   return 0;
 }
-static int string_io_read() {
+static int memory_read() {
   char src[] = "hello\0WORLD";
-  Input* in = string_input_new(src, sizeof(src));
+  Input* in = memory_input_new(src, sizeof(src));
 
   char cbuf[100];
 
@@ -77,7 +77,7 @@ static int string_io_read() {
 
 static int limited_input() {
   const char* src = "Bob is cool NOT";
-  Input* base = string_input_new(src, strlen(src));
+  Input* base = memory_input_new(src, strlen(src));
   Input* in = limited_input_new(base, 11);
 
   Output* strout = string_output_new(100);
@@ -96,7 +96,7 @@ static int limited_input() {
 }
 static int limited_input_unget() {
   const char* src = "Bob is cool";
-  Input* in = limited_input_new(string_input_new(src, strlen(src)), 3);
+  Input* in = limited_input_new(memory_input_new(src, strlen(src)), 3);
 
   int c;
   c = io_get(in); assertEqual(c, 'B');
@@ -120,7 +120,7 @@ static int binary_io_utils() {
 
   size_t sz;
   const char* data = string_output_data(out, &sz);
-  Input* in = string_input_new(data, sz);
+  Input* in = memory_input_new(data, sz);
 
   assertEqual(0x12, io_get_int8(in));
   assertEqual(0x3456, io_get_int16(in));
@@ -163,8 +163,8 @@ static int memory_rewind() {
 VLIB_SUITE(io) = {
   VLIB_TEST(string_io_write),
   VLIB_TEST(string_io_put),
-  VLIB_TEST(string_io_read),
   VLIB_TEST(string_io_reset),
+  VLIB_TEST(memory_read),
   VLIB_TEST(limited_input),
   VLIB_TEST(limited_input_unget),
   VLIB_TEST(binary_io_utils),

@@ -69,10 +69,10 @@ static int varint_encoding() {
 
 static int varint_decoding() {
   Varint* v = varint_new(8);
-  Input* in = string_input_new(NULL, 0);
+  Input* in = memory_input_new(NULL, 0);
   for (unsigned i = 0; i < sizeof(encoding_tests)/sizeof(Test); i++) {
     VarintTest test = encoding_tests[i];
-    string_input_reset(in, test.binary, strlen(test.binary));
+    memory_input_reset(in, test.binary, strlen(test.binary));
     assertEqual(true, varint_decode(v, in));
     uint64_t result = varint_to_uint(v);
     assertEqual(result, test.integral);

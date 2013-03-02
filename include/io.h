@@ -63,12 +63,12 @@ int64_t     io_get_int64(Input* in);
 
 /* Some standard IO implementations */
 
-Input*      string_input_new(const char* src, size_t sz);
-void        string_input_reset(Input* string_input, const char* src, size_t sz);
-
 Output*     string_output_new(size_t initcap);
 const char* string_output_data(Output* string_output, size_t* size);
 void        string_output_reset(Output* string_output);
+
+Input*      memory_input_new(const char* src, size_t sz);
+void        memory_input_reset(Input* memory_input, const char* src, size_t sz);
 
 Output*     memory_output_new(void* dst, size_t sz);
 void        memory_output_reset(Output* memory_output, void* dst, size_t sz);
