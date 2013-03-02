@@ -9,6 +9,7 @@
 #include <vlib/util.h>
 #include <vlib/io.h>
 #include <vlib/vector.h>
+#include <vlib/varint.h>
 
 static void close_free(void* _self) {
   free(_self);
@@ -159,6 +160,28 @@ int64_t io_get_int64(Input* in) {
   uint64_t g = mustget(in);
   uint64_t h = mustget(in);
   return (a << 56) | (b << 48) | (c << 40) | (d << 32) | (e << 24) | (f << 16) | (g << 8) | h;
+}
+
+void io_put_varint(Output* out, int64_t i) {
+  VARINT_STACK(v, 10);
+  int_to_varint(i, v);
+  varint_encode(v, out);
+}
+void io_put_uvarint(Output* out, uint64_t u) {
+  VARINT_STACK(v, 10);
+  uint_to_varint(u, v);
+  varint_encode(v, out);
+}
+
+int64_t io_get_varint(Input* in) {
+  VARINT_STACK(v, 10);
+  if (!varint_decode(v, in)) RAISE(MALFORMED);
+  return varint_to_int(v);
+}
+uint64_t io_get_uvarint(Input* in) {
+  VARINT_STACK(v, 10);
+  if (!varint_decode(v, in)) RAISE(MALFORMED);
+  return varint_to_uint(v);
 }
 
 /* StringInput */
@@ -371,8 +394,10 @@ Output* memory_output_new(void* dst, size_t sz) {
   self->size = 0;
   return &self->base;
 }
-void memory_output_reset(Output* _self) {
+void memory_output_reset(Output* _self, void* dst, size_t sz) {
   MemOutput* self = (MemOutput*)_self;
+  self->dst = dst;
+  self->max = sz;
   self->size = 0;
 }
 void memory_output_rewind(Output* _self, size_t new_offset) {

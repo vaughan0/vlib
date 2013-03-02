@@ -17,6 +17,8 @@ static inline void varint_free(Varint* v) {
   free(v);
 }
 
+#define VARINT_STACK(name, size) struct { Varint base; uint8_t digits[size]; } _v_##__LINE__; Varint* name = &_v_##__LINE__.base;
+
 uint64_t  varint_to_uint(Varint* v);
 void      uint_to_varint(uint64_t i, Varint* v);
 
