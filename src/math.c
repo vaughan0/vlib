@@ -32,18 +32,16 @@ void rand_bytes(RandomSource* source, void* dst, size_t n) {
 
 /* Secure random source */
 
-static __thread FILE* urandom = NULL;
+static __thread Input* urandom = NULL;
 
 static uint64_t secure_generate(void* _self) {
   if (!urandom) {
-    urandom = fopen("/dev/null", "r");
-    if (!urandom) verr_raise_system();
+    FILE* fin = fopen("/dev/urandom", "r");
+    if (!fin) verr_raise_system();
+    urandom = file_input_new(fin, true);
   }
   uint64_t result;
-  size_t n = fread(&result, sizeof(result), 1, urandom);
-  if (n < sizeof(result)) {
-    verr_raise(feof(urandom) ? VERR_EOF : VERR_IO);
-  }
+  io_readall(urandom, &result, sizeof(result));
   return result;
 }
 static void secure_close() {}
@@ -58,7 +56,7 @@ RandomSource secure_random_source[1] = {{
 
 void secure_random_cleanup() {
   if (urandom) {
-    fclose(urandom);
+    call(urandom, close);
     urandom = NULL;
   }
 }
