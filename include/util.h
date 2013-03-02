@@ -13,6 +13,14 @@
 	(type *)( (char *)__mptr - offsetof(type,member) );})
 #endif
 
+// Declares variable `var` to be a pointer to a value of type `type`, with extra space of size `extra_size`.
+#define STACK_ALLOC(type, var, extra_size) \
+  struct { \
+    type value; \
+    char extra_data[extra_size]; \
+  } _stack_alloc_##__LINE__; \
+  type* var = &_stack_alloc_##__LINE__.value;
+
 // Utility function that does nothing. Intended for use as a close method.
 void null_close(void* self);
 
