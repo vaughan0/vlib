@@ -45,10 +45,16 @@ static inline void io_writec(Output* out, const char* str) {
 }
 #define io_writelit(out, str) io_write((out), (str), sizeof(str)-1);
 
+void        io_put_varint(Output* out, int64_t i);
+void        io_put_uvarint(Output* out, uint64_t u);
+
 void        io_put_int8(Output* out, int8_t i);
 void        io_put_int16(Output* out, int16_t i);
 void        io_put_int32(Output* out, int32_t i);
 void        io_put_int64(Output* out, int64_t i);
+
+int64_t     io_get_varint(Input* in);
+uint64_t    io_get_uvarint(Input* in);
 
 int8_t      io_get_int8(Input* in);
 int16_t     io_get_int16(Input* in);
