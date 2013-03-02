@@ -391,7 +391,7 @@ static size_t memory_input_read(void* _self, char* dst, size_t n) {
 static int memory_input_get(void* _self) {
   MemoryInput* self = _self;
   if (self->offset < self->size) {
-    return self->src[self->offset++];
+    return self->src[self->offset++] & 0xFF;
   }
   return -1;
 }

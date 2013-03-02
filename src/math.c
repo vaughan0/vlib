@@ -12,9 +12,9 @@ double rand_double(RandomSource* source) {
   uint64_t max = ~((uint64_t)0);
   return (double)n / ((double)max + 1);
 }
-int rand_int(RandomSource* source, int min, int max) {
-  int range = max - min + 1;
-  return rand_double(source) * range + min;
+int64_t rand_int(RandomSource* source, int64_t min, int64_t max) {
+  double range = (double)max - (double)min + 1;
+  return (int64_t)(rand_double(source) * range + min);
 }
 void rand_bytes(RandomSource* source, void* dst, size_t n) {
   uint64_t* ptr = dst;

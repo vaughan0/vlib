@@ -10,7 +10,7 @@ interface(RandomSource) {
 };
 
 double        rand_double(RandomSource* source);
-int           rand_int(RandomSource* source, int min, int max);
+int64_t       rand_int(RandomSource* source, int64_t min, int64_t max);
 void          rand_bytes(RandomSource* source, void* dst, size_t n);
 
 RandomSource* pseudo_random_new(uint64_t seed);

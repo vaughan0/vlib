@@ -4,6 +4,7 @@
 
 #include <vlib/test.h>
 #include <vlib/varint.h>
+#include <vlib/math.h>
 
 static int varint_basic() {
   Varint* v = varint_new(8);
@@ -16,7 +17,6 @@ static int varint_basic() {
   varint_free(v);
   return 0;
 }
-
 static int varint_signed() {
   Varint* v = varint_new(8);
   int64_t tests[] = {0, 1, 2, 3, -1, -2, -3, 2097152, -2097152};
@@ -66,7 +66,6 @@ static int varint_encoding() {
   varint_free(v);
   return 0;
 }
-
 static int varint_decoding() {
   Varint* v = varint_new(8);
   Input* in = memory_input_new(NULL, 0);
@@ -82,11 +81,47 @@ static int varint_decoding() {
   return 0;
 }
 
+static int varint_fuzz() {
+  VARINT_STACK(v, 10);
+  Output* out = string_output_new(4096);
+  Input* in = memory_input_new(NULL, 0);
+  RandomSource* rand = pseudo_random_new(0x4224233212345678);
+  int numbers[409];
+
+  for (int test_case = 0; test_case < 100; test_case++) {
+    string_output_reset(out);
+
+    // Generate and encode random numbers
+    for (unsigned i = 0; i < sizeof(numbers)/sizeof(int); i++) {
+      numbers[i] = rand_int(rand, INT64_MIN, INT64_MAX);
+      int_to_varint(numbers[i], v);
+      varint_encode(v, out);
+    }
+
+    // Decode and check
+    size_t datasz;
+    const char* data = string_output_data(out, &datasz);
+    memory_input_reset(in, data, datasz);
+    for (unsigned i = 0; i < sizeof(numbers)/sizeof(int); i++) {
+      bool success = varint_decode(v, in);
+      assertTrue(success);
+      assertEqual(varint_to_int(v), numbers[i]);
+    }
+
+  }
+
+  call(rand, close);
+  call(in, close);
+  call(out, close);
+  return 0;
+}
+
 VLIB_SUITE(varint) = {
   VLIB_TEST(varint_basic),
   VLIB_TEST(varint_signed),
   VLIB_TEST(varint_encoding),
   VLIB_TEST(varint_decoding),
+  VLIB_TEST(varint_fuzz),
   VLIB_END,
 };
 

@@ -63,6 +63,7 @@ bool varint_decode(Varint* to, Input* src) {
   uint8_t getc() {
     int c = io_get(src);
     if (c == -1) RAISE(EOF);
+    assert(c >= 0 && c < 256);
     return c;
   }
   to->len = 0;
