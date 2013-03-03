@@ -7,6 +7,7 @@ interface(rich_Schema) {
   rich_Reactor_Sink_Impl sink_impl;
   void    (*dump_value)(void* self, void* from, rich_Sink* to);
   size_t  (*data_size)(void* self);
+  void    (*close_data)(void* self, void* data);
   void    (*close)(void* self);
 };
 
