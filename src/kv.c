@@ -58,6 +58,7 @@ static KVOpener_Impl prefix_impl;
 KVOpener* kv_prefix_opener(const char* prefix, KVOpener* wrap) {
   PrefixOpener* self = malloc(sizeof(PrefixOpener));
   self->base._impl = &prefix_impl;
+  self->wrap = wrap;
   self->bufout = string_output_new(strlen(prefix)+64);
   io_writec(self->bufout, prefix);
   string_output_data(self->bufout, &self->offset);
@@ -79,11 +80,13 @@ static const char* add_prefix(PrefixOpener* self, const char* table) {
 }
 static KVDB* prefix_open(void* _self, const char* table) {
   PrefixOpener* self = _self;
-  return call(self->wrap, open, add_prefix(self, table));
+  table = add_prefix(self, table);
+  KVDB* db = call(self->wrap, open, table);
+  return db;
 }
 static KVDB* prefix_create(void* _self, const char* table) {
   PrefixOpener* self = _self;
-  return call(self->wrap, open, add_prefix(self, table));
+  return call(self->wrap, create, add_prefix(self, table));
 }
 static void prefix_close(void* _self) {
   PrefixOpener* self = _self;

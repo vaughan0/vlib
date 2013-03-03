@@ -1,6 +1,8 @@
 #ifndef KV_H_3EF446161DB48B
 #define KV_H_3EF446161DB48B
 
+#include <assert.h>
+
 #include <vlib/std.h>
 
 data(KVDatum) {
@@ -35,7 +37,9 @@ interface(KVOpener) {
 
 static inline KVDB* kv_open_create(KVOpener* opener, const char* table) {
   KVDB* db = call(opener, open, table);
-  return db ?: call(opener, create, table);
+  if (!db) db = call(opener, create, table);
+  assert(db);
+  return db;
 }
 
 KVOpener* kv_unclosable_opener(KVOpener* wrap);
