@@ -38,6 +38,9 @@ static inline KVDB* kv_open_create(KVOpener* opener, const char* table) {
   return db ?: call(opener, create, table);
 }
 
+KVOpener* kv_unclosable_opener(KVOpener* wrap);
+void      kv_unclosable_close(KVOpener* self);
+
 KVOpener* kv_prefix_opener(const char* prefix, KVOpener* wrap);
 void      kv_prefix_reset(KVOpener* self, const char* prefix, KVOpener* wrap);
 

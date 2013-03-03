@@ -5,10 +5,45 @@
 #include <vlib/kv.h>
 #include <vlib/error.h>
 #include <vlib/io.h>
+#include <vlib/util.h>
 
 #ifdef VLIB_ENABLE_GDBM
 
 #include <gdbm.h>
+
+/* UnclosableOpener */
+
+data(UnclosableOpener) {
+  KVOpener  base;
+  KVOpener* wrap;
+};
+static KVOpener_Impl unclosable_impl;
+
+KVOpener* kv_unclosable_opener(KVOpener* wrap) {
+  UnclosableOpener* self = malloc(sizeof(UnclosableOpener));
+  self->base._impl = &unclosable_impl;
+  self->wrap = wrap;
+  return &self->base;
+}
+void kv_unclosable_close(KVOpener* _self) {
+  UnclosableOpener* self = (UnclosableOpener*)_self;
+  call(self->wrap, close);
+  free(self);
+}
+
+static KVDB* unclosable_open(void* _self, const char* table) {
+  UnclosableOpener* self = _self;
+  return call(self->wrap, open, table);
+}
+static KVDB* unclosable_create(void* _self, const char* table) {
+  UnclosableOpener* self = _self;
+  return call(self->wrap, create, table);
+}
+static KVOpener_Impl unclosable_impl = {
+  .open = unclosable_open,
+  .create = unclosable_create,
+  .close = null_close,
+};
 
 /* PrefixOpener */
 
@@ -23,7 +58,7 @@ static KVOpener_Impl prefix_impl;
 KVOpener* kv_prefix_opener(const char* prefix, KVOpener* wrap) {
   PrefixOpener* self = malloc(sizeof(PrefixOpener));
   self->base._impl = &prefix_impl;
-  self->bufout = string_output_new(strlen(prefix)+32);
+  self->bufout = string_output_new(strlen(prefix)+64);
   io_writec(self->bufout, prefix);
   string_output_data(self->bufout, &self->offset);
   return &self->base;
