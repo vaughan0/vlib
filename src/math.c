@@ -9,7 +9,7 @@
 
 double rand_double(RandomSource* source) {
   uint64_t n = call(source, generate);
-  uint64_t max = ~((uint64_t)0);
+  uint64_t max = UINT64_MAX;
   return (double)n / ((double)max + 1);
 }
 int64_t rand_int(RandomSource* source, int64_t min, int64_t max) {
@@ -84,13 +84,13 @@ RandomSource* pseudo_random_new(uint64_t seed) {
 
 static uint64_t pseudo_generate(void* _self) {
   PseudoRandom* self = _self;
-  union {
-    int32_t   arr[2];
-    uint64_t  result;
-  } u;
-  if (random_r(self->buf, &u.arr[0])) verr_raise_system();
-  if (random_r(self->buf, &u.arr[1])) verr_raise_system();
-  return u.result;
+  uint64_t num = 0;
+  for (unsigned i = 0; i < 4; i++) {
+    int32_t r;
+    if (random_r(self->buf, &r)) verr_raise_system();
+    num = (num << 16) | (r & 0xFFFF);
+  }
+  return num;
 }
 
 static RandomSource_Impl pseudo_impl = {

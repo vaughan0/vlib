@@ -14,7 +14,7 @@
   } name; \
   struct name##_Impl
 
-#define call(obj, method, ...) ({ typeof(obj) _o = (obj); _o->_impl->method(_o, ##__VA_ARGS__); })
+#define call(obj, method, ...) (obj)->_impl->method((obj), ##__VA_ARGS__)
 
 #define data(name) \
   typedef struct name name; \
