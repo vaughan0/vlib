@@ -73,6 +73,7 @@ static RandomSource_Impl pseudo_impl;
 
 RandomSource* pseudo_random_new(uint64_t seed) {
   PseudoRandom* self = malloc(sizeof(PseudoRandom));
+  memset(self, 0, sizeof(*self));
   self->base._impl = &pseudo_impl;
   if (initstate_r(seed, self->state, sizeof(self->state), self->buf)) {
     int eno = errno;
