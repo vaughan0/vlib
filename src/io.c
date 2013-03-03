@@ -235,7 +235,6 @@ data(StringOutput) {
   Piece*      first;
   Piece*      last;
 };
-
 static Output_Impl string_output_impl;
 
 Output* string_output_new(size_t initcap) {
@@ -262,7 +261,6 @@ static void make_piece(StringOutput* self) {
   self->last->next = newpiece;
   self->last = newpiece;
 }
-
 static void string_output_write(void* _self, const char* src, size_t n) {
   StringOutput* self = _self;
 
@@ -348,6 +346,13 @@ void string_output_reset(Output* _self) {
 
   self->first = self->last;
   self->offset = 0;
+}
+void string_output_rewind(Output* _self, size_t new_offset) {
+  StringOutput* self = (StringOutput*)_self;
+  // Force collapsing all pieces into one
+  string_output_data(_self, NULL);
+  assert(new_offset <= self->offset);
+  self->offset = new_offset;
 }
 
 static Output_Impl string_output_impl = {

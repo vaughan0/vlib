@@ -80,6 +80,7 @@ void        io_vformat(IOFormatter* self, const char* fmt, va_list ap);
 
 Output*     string_output_new(size_t initcap);
 const char* string_output_data(Output* string_output, size_t* size);
+void        string_output_rewind(Output* string_output, size_t new_offset);
 void        string_output_reset(Output* string_output);
 
 Input*      memory_input_new(const char* src, size_t sz);
