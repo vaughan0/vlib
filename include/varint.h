@@ -21,7 +21,7 @@ static inline void varint_free(Varint* v) {
   free(v);
 }
 
-#define VARINT_STACK(name, size) STACK_ALLOC(Varint, name, sizeof(uint8_t)*(size))
+#define VARINT_STACK(name, size) STACK_ALLOC(Varint, name, sizeof(uint8_t)*(size)); name->max = (size);
 
 uint64_t  varint_to_uint(Varint* v);
 int64_t   varint_to_int(Varint* v);
