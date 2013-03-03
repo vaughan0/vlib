@@ -10,6 +10,59 @@
 
 #include <gdbm.h>
 
+/* PrefixOpener */
+
+data(PrefixOpener) {
+  KVOpener    base;
+  KVOpener*   wrap;
+  Output*     bufout;
+  size_t      offset;
+};
+static KVOpener_Impl prefix_impl;
+
+KVOpener* kv_prefix_opener(const char* prefix, KVOpener* wrap) {
+  PrefixOpener* self = malloc(sizeof(PrefixOpener));
+  self->base._impl = &prefix_impl;
+  self->bufout = string_output_new(strlen(prefix)+32);
+  io_writec(self->bufout, prefix);
+  string_output_data(self->bufout, &self->offset);
+  return &self->base;
+}
+void kv_prefix_reset(KVOpener* _self, const char* prefix, KVOpener* wrap) {
+  PrefixOpener* self = (PrefixOpener*)_self;
+  self->wrap = wrap;
+  string_output_reset(self->bufout);
+  io_writec(self->bufout, prefix);
+  string_output_data(self->bufout, &self->offset);
+}
+
+static const char* add_prefix(PrefixOpener* self, const char* table) {
+  string_output_rewind(self->bufout, self->offset);
+  io_writec(self->bufout, table);
+  io_put(self->bufout, '\0');
+  return string_output_data(self->bufout, NULL);
+}
+static KVDB* prefix_open(void* _self, const char* table) {
+  PrefixOpener* self = _self;
+  return call(self->wrap, open, add_prefix(self, table));
+}
+static KVDB* prefix_create(void* _self, const char* table) {
+  PrefixOpener* self = _self;
+  return call(self->wrap, open, add_prefix(self, table));
+}
+static void prefix_close(void* _self) {
+  PrefixOpener* self = _self;
+  call(self->bufout, close);
+  call(self->wrap, close);
+  free(self);
+}
+
+static KVOpener_Impl prefix_impl = {
+  .open = prefix_open,
+  .create = prefix_create,
+  .close = prefix_close,
+};
+
 /* GDBM Database */
 
 data(GDBM_DB) {

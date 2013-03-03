@@ -38,6 +38,9 @@ static inline KVDB* kv_open_create(KVOpener* opener, const char* table) {
   return db ?: call(opener, create, table);
 }
 
+KVOpener* kv_prefix_opener(const char* prefix, KVOpener* wrap);
+void      kv_prefix_reset(KVOpener* self, const char* prefix, KVOpener* wrap);
+
 #ifdef VLIB_ENABLE_GDBM
 
 KVDB*     kv_gdbm_open(const char* file, bool create);
