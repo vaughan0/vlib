@@ -4,7 +4,6 @@
 
 #include <vlib/test.h>
 #include <vlib/io.h>
-#include <vlib/bufio.h>
 
 static void write_cstr(Output* out, const char* str) {
   unsigned n = strlen(str);

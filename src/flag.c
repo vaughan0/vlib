@@ -7,7 +7,6 @@
 
 #include <vlib/flag.h>
 #include <vlib/error.h>
-#include <vlib/bufio.h>
 
 static void flag_default_usage(Flags* self, const char* error);
 

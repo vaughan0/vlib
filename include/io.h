@@ -78,6 +78,12 @@ void        io_vformat(IOFormatter* self, const char* fmt, va_list ap);
 
 /* Some standard IO implementations */
 
+Input*      buf_input_new(Input* wrap, size_t buffer_size);
+void        buf_input_reset(Input* self, Input* wrap);
+
+Output*     buf_output_new(Output* wrap, size_t buffer_size);
+void        buf_output_reset(Output* self, Output* wrap);
+
 Output*     string_output_new(size_t initcap);
 const char* string_output_data(Output* string_output, size_t* size);
 void        string_output_rewind(Output* string_output, size_t new_offset);
