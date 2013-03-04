@@ -8,6 +8,7 @@
 
 #include <vlib/rich.h>
 #include <vlib/vector.h>
+#include <vlib/util.h>
 
 enum {
   TKN_EOF = -1,
@@ -367,6 +368,7 @@ static void source_close(void* _self) {
   if (p->curtok.type == TKN_STRING && p->curtok.str.sval) {
     free(p->curtok.str.sval);
   }
+  if (p->in) call(p->in, close);
   free(p);
 }
 static rich_Source_Impl source_impl = {
@@ -394,6 +396,8 @@ static void json_sink(void* _self, rich_Atom atom, void* atom_data) {
 }
 static void sink_close(void* _self) {
   Dumper* self = _self;
+  Output* out = self->reactor->global;
+  if (out) call(out, close);
   rich_reactor_close(self->reactor);
   free(self);
 }
@@ -570,7 +574,8 @@ static rich_Reactor_Sink value_sink = {
 static rich_Codec_Impl codec_impl = {
   .new_sink = json_new_sink,
   .new_source = json_new_source,
+  .close = null_close,
 };
-rich_Codec rich_json_codec = {
+rich_Codec rich_json_codec[1] = {{
   ._impl = &codec_impl,
-};
+}};

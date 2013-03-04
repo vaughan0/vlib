@@ -64,9 +64,9 @@ static rich_Sink_Impl debug_sink_impl = {
   .close = null_close,
 };
 
-rich_Sink rich_debug_sink = {
+rich_Sink rich_debug_sink[1] = {{
   ._impl = &debug_sink_impl,
-};
+}};
 
 /* Reactor */
 
@@ -84,9 +84,17 @@ void rich_reactor_init(rich_Reactor* self, size_t data_sz) {
   self->pop_last = false;
 }
 void rich_reactor_close(rich_Reactor* self) {
+  for (int i = (int)self->stack->size-1; i >= 0; i--) {
+    Frame* f = vector_get(self->stack, i);
+    call(f->sink, cleanup_frame, f->data);
+  }
   vector_close(self->stack);
 }
 void rich_reactor_reset(rich_Reactor* self) {
+  for (int i = (int)self->stack->size-1; i >= 0; i--) {
+    Frame* f = vector_get(self->stack, i);
+    call(f->sink, cleanup_frame, f->data);
+  }
   vector_clear(self->stack);
 }
 

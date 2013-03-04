@@ -51,11 +51,12 @@ interface(rich_Source) {
 interface(rich_Codec) {
   rich_Sink*    (*new_sink)(void* self, Output* out);
   rich_Source*  (*new_source)(void* self, Input* in);
+  void          (*close)(void* self);
 };
 
-extern rich_Sink rich_debug_sink;
+extern rich_Sink rich_debug_sink[1];
 
-extern rich_Codec rich_json_codec;
+extern rich_Codec rich_json_codec[1];
 
 /** Reactor utility
  *
