@@ -37,7 +37,7 @@ rich_Sink*  rich_bind(rich_Schema* schema, void* to);
 void        rich_rebind(rich_Sink* bound_sink, void* to);
 
 // Utility for recursive schema implementations
-static void rich_schema_push(rich_Reactor* r, rich_Schema* s, void* to) {
+static inline void rich_schema_push(rich_Reactor* r, rich_Schema* s, void* to) {
   rich_Frame* f = rich_reactor_push(r, (rich_Reactor_Sink*)s);
   f->to = to;
 }
