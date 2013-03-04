@@ -5,11 +5,6 @@
 
 #include <vlib/std.h>
 
-data(KVDatum) {
-  void*   ptr;
-  size_t  size;
-};
-
 interface(KVDB) {
   /** Performs a lookup.
    * If data->ptr is NULL, then data->size will be ignored and a new block
@@ -21,8 +16,8 @@ interface(KVDB) {
    * If the lookup fails, data->ptr will be set to NULL. If it succeeds, then data->size will be
    * set to the size of the result data.
    */
-  void    (*lookup)(void* self, KVDatum key, KVDatum* data);
-  void    (*store)(void* self, KVDatum key, KVDatum data);
+  void    (*lookup)(void* self, Bytes key, Bytes* data);
+  void    (*store)(void* self, Bytes key, Bytes data);
   void    (*sync)(void* self);
   void    (*close)(void* self);
 };

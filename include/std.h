@@ -22,5 +22,10 @@
 
 #define EXPORT __attribute__ ((visibility ("default")))
 
+data(Bytes) {
+  size_t  size;
+  void*   ptr;
+};
+
 #endif /* STD_H_95ECC92A271C4F */
 

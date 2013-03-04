@@ -121,7 +121,7 @@ KVDB* kv_gdbm_open(const char* file, bool create) {
   return &self->base;
 }
 
-static void kv_gdbm_lookup(void* _self, KVDatum key, KVDatum* data) {
+static void kv_gdbm_lookup(void* _self, Bytes key, Bytes* data) {
   GDBM_DB* self = _self;
   datum dbkey = {
     .dptr = key.ptr,
@@ -146,7 +146,7 @@ static void kv_gdbm_lookup(void* _self, KVDatum key, KVDatum* data) {
     data->size = result.dsize;
   }
 }
-static void kv_gdbm_store(void* _self, KVDatum key, KVDatum data) {
+static void kv_gdbm_store(void* _self, Bytes key, Bytes data) {
   GDBM_DB* self = _self;
   datum dbkey = {
     .dptr = key.ptr,
