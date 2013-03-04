@@ -26,16 +26,16 @@ BinaryRPC*  rpc_to_binary(RPC* backend, rich_Codec* codec);
 
 /* Client-side utilities */
 
-data(RPCClient) {
+data(RPC_Client) {
   RPC*      backend;
   Vector    methods[1];
 };
 
-void    rpc_init(RPCClient* self, RPC* backend);
-void    rpc_close(RPCClient* self);
-int     rpc_register(RPCClient* self, const char* method, rich_Schema* arg_schema, rich_Schema* result_schema);
+void    rpc_init(RPC_Client* self, RPC* backend);
+void    rpc_close(RPC_Client* self);
+int     rpc_register(RPC_Client* self, const char* method, rich_Schema* arg_schema, rich_Schema* result_schema);
 
-void    rpc_call(RPCClient* self, int method, void* arg, void* result);
+void    rpc_call(RPC_Client* self, int method, void* arg, void* result);
 
 /* Server-side utilities */
 
@@ -44,13 +44,16 @@ typedef void (*RPCMethod)(void* udata, void* args, void* result);
 RPC*    rpc_service_new(void* udata);
 void    rpc_service_add(RPC* self, const char* method, RPCMethod handler, rich_Schema* arg_schema, rich_Schema* result_schema);
 
-/* Client-side RPC */
+/* RPC over ZeroMQ support */
 
 #ifdef VLIB_ENABLE_ZMQ
 
 #include <zmq.h>
 
 BinaryRPC*  rpc_zmq_new(void* req_socket);
+
+// TODO: do this properly, ie. make it stoppable.
+void        rpc_zmq_serve(void* rep_socket, BinaryRPC* rpc);
 
 #endif
 

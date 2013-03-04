@@ -120,7 +120,7 @@ static BinaryRPC_Impl server_impl = {
   .close = server_close,
 };
 
-/* RPCClient */
+/* RPC_Client */
 
 data(ClientMethod) {
   const char*   name;
@@ -130,11 +130,11 @@ data(ClientMethod) {
   rich_Sink*    result_sink;
 };
 
-void rpc_init(RPCClient* self, RPC* backend) {
+void rpc_init(RPC_Client* self, RPC* backend) {
   self->backend = backend;
   vector_init(self->methods, sizeof(ClientMethod), 4);
 }
-void rpc_close(RPCClient* self) {
+void rpc_close(RPC_Client* self) {
   for (unsigned i = 0; i < self->methods->size; i++) {
     ClientMethod* method = vector_get(self->methods, i);
     call(method->arg_source, close);
@@ -144,7 +144,7 @@ void rpc_close(RPCClient* self) {
   }
   vector_close(self->methods);
 }
-int rpc_register(RPCClient* self, const char* method_name, rich_Schema* arg_schema, rich_Schema* result_schema) {
+int rpc_register(RPC_Client* self, const char* method_name, rich_Schema* arg_schema, rich_Schema* result_schema) {
   ClientMethod* method = vector_push(self->methods);
   method->name = method_name;
   method->arg_schema = arg_schema;
@@ -154,7 +154,7 @@ int rpc_register(RPCClient* self, const char* method_name, rich_Schema* arg_sche
   return self->methods->size - 1;
 }
 
-void rpc_call(RPCClient* self, int method_index, void* arg, void* result) {
+void rpc_call(RPC_Client* self, int method_index, void* arg, void* result) {
   ClientMethod* method = vector_get(self->methods, method_index);
   call(method->arg_schema, close_data, arg);
   rich_schema_reset(method->arg_source, arg);
@@ -287,5 +287,80 @@ static BinaryRPC_Impl zmq_impl = {
   .call = zmqrpc_call,
   .close = zmqrpc_close,
 };
+
+static bool hasmore(void* socket) {
+  int64_t rcvmore;
+  size_t optlen = sizeof(rcvmore);
+  int r = zmq_getsockopt(socket, ZMQ_RCVMORE, &rcvmore, &optlen);
+  assert(r != -1);
+  return rcvmore != 0;
+}
+static void discard_parts(void* socket) {
+  while (hasmore(socket)) {
+    zmq_msg_t msg[1];
+    zmq_msg_init_size(msg, 8);
+    int r = zmq_recv(socket, msg, 0);
+    if (r == -1) verr_raise_system();
+    zmq_msg_close(msg);
+  }
+}
+void rpc_zmq_serve(void* socket, BinaryRPC* rpc) {
+  int r;
+  Output* buf = string_output_new(512);
+  TRY {
+    for (;; discard_parts(socket)) {
+
+      // Receive method string
+      zmq_msg_t method[1];
+      zmq_msg_init(method);
+      r = zmq_recv(socket, method, 0);
+      if (r == -1) verr_raise_system();
+      if (!hasmore(socket)) {
+        zmq_msg_close(method);
+        continue;
+      }
+
+      // Receive argument data
+      zmq_msg_t args[1];
+      zmq_msg_init(args);
+      r = zmq_recv(socket, args, 0);
+      if (r == -1) verr_raise_system();
+      if (!hasmore(socket)) {
+        zmq_msg_close(method);
+        zmq_msg_close(args);
+        continue;
+      }
+
+      // Process request
+      Bytes method_bytes = {
+        .ptr = zmq_msg_data(method),
+        .size = zmq_msg_size(method),
+      };
+      Bytes arg_bytes = {
+        .ptr = zmq_msg_data(args),
+        .size = zmq_msg_size(args),
+      };
+      TRY {
+        string_output_reset(buf);
+        call(rpc, call, method_bytes, arg_bytes, buf);
+      } FINALLY {
+        zmq_msg_close(method);
+        zmq_msg_close(args);
+      } ETRY
+
+      // Return response
+      size_t resp_size;
+      const char* resp_data = string_output_data(buf, &resp_size);
+      zmq_msg_t resp[1];
+      zmq_msg_init_size(resp, resp_size);
+      memcpy(zmq_msg_data(resp), resp_data, resp_size);
+      r = zmq_send(socket, resp, 0);
+      if (r == -1) verr_raise_system();
+
+    }
+  } FINALLY {
+    call(buf, close);
+  } ETRY
+}
 
 #endif
