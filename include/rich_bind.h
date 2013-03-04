@@ -21,10 +21,9 @@ static inline void rich_schema_close(rich_Schema* s) {
   if (s->_impl->close) call(s, close);
 }
 
-/* Creates a new rich_Source from a schema and address.
- * If you want to change the address, it's probably easiest to wrap the schema in a pointer schema,
- * then just reassign the pointer to rebind. */
+/* Creates a new rich_Source from a schema and address. */
 rich_Source*  rich_schema_source(rich_Schema* schema, void* from);
+void          rich_schema_reset(rich_Source* src, void* new_from);
 
 // Dumps data of a certain schema, from a given address, to a sink
 void rich_dump(rich_Schema* schema, void* from, rich_Sink* to);
@@ -44,14 +43,14 @@ static inline void rich_schema_push(rich_Reactor* r, rich_Schema* s, void* to) {
 
 /* Default schemas */
 
-extern rich_Schema rich_schema_bool;
-extern rich_Schema rich_schema_int;
-extern rich_Schema rich_schema_float;
-extern rich_Schema rich_schema_string;  // rich_String
-extern rich_Schema rich_schema_cstring; // NULL-terminated strings
+extern rich_Schema rich_schema_bool[1];
+extern rich_Schema rich_schema_int[1];
+extern rich_Schema rich_schema_float[1];
+extern rich_Schema rich_schema_string[1];  // rich_String
+extern rich_Schema rich_schema_cstring[1]; // NULL-terminated strings
 
 // Does nothing with the data it receives
-extern rich_Schema rich_schema_discard;
+extern rich_Schema rich_schema_discard[1];
 
 rich_Schema*  rich_schema_vector(rich_Schema* vector_of);
 

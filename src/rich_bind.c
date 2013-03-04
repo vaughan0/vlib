@@ -7,8 +7,6 @@
 #include <vlib/vector.h>
 #include <vlib/hashtable.h>
 
-static void null_close_data(void* self, void* data) {}
-
 void rich_dump(rich_Schema* schema, void* from, rich_Sink* to) {
   call(schema, dump_value, from, to);
 }
@@ -27,6 +25,10 @@ rich_Source* rich_schema_source(rich_Schema* schema, void* from) {
   self->schema = schema;
   self->from = from;
   return (rich_Source*)self;
+}
+void rich_schema_reset(rich_Source* _self, void* new_from) {
+  BoundSource* self = (BoundSource*)_self;
+  self->from = new_from;
 }
 
 static void bound_read_value(void* _self, rich_Sink* to) {
@@ -98,15 +100,18 @@ static void bool_dump(void* _self, void* from, rich_Sink* to) {
 static size_t bool_size(void* _self) {
   return sizeof(bool);
 }
+static void bool_close_data(void* _self, void* data) {
+  *(bool*)data = false;
+}
 static rich_Schema_Impl bool_impl = {
   .sink_impl.sink = bool_sink,
   .dump_value = bool_dump,
   .data_size = bool_size,
-  .close_data = null_close_data,
+  .close_data = bool_close_data,
 };
-rich_Schema rich_schema_bool = {
+rich_Schema rich_schema_bool[1] = {{
   ._impl = &bool_impl,
-};
+}};
 
 /* int */
 
@@ -125,15 +130,18 @@ static void int_dump(void* _self, void* from, rich_Sink* to) {
 static size_t int_size(void* _self) {
   return sizeof(int);
 }
+static void int_close_data(void* _self, void* data) {
+  *(int*)data = 0;
+}
 static rich_Schema_Impl int_impl = {
   .sink_impl.sink = int_sink,
   .dump_value = int_dump,
   .data_size = int_size,
-  .close_data = null_close_data,
+  .close_data = int_close_data,
 };
-rich_Schema rich_schema_int = {
+rich_Schema rich_schema_int[1] = {{
   ._impl = &int_impl,
-};
+}};
 
 /* float */
 
@@ -152,15 +160,18 @@ static void float_dump(void* _self, void* from, rich_Sink* to) {
 static size_t float_size(void* _self) {
   return sizeof(double);
 }
+static void float_close_data(void* _self, void* data) {
+  *(double*)data = 0;
+}
 static rich_Schema_Impl float_impl = {
   .sink_impl.sink = float_sink,
   .dump_value = float_dump,
   .data_size = float_size,
-  .close_data = null_close_data,
+  .close_data = float_close_data,
 };
-rich_Schema rich_schema_float = {
+rich_Schema rich_schema_float[1] = {{
   ._impl = &float_impl,
-};
+}};
 
 /* string */
 
@@ -189,7 +200,10 @@ static size_t string_size(void* _self) {
 }
 static void string_close_data(void* _self, void* _data) {
   rich_String* str = _data;
-  if (str->data) free(str->data);
+  if (str->data) {
+    free(str->data);
+    str->data = NULL;
+  }
 }
 static rich_Schema_Impl string_impl = {
   .sink_impl.sink = string_sink,
@@ -197,9 +211,9 @@ static rich_Schema_Impl string_impl = {
   .data_size = string_size,
   .close_data = string_close_data,
 };
-rich_Schema rich_schema_string = {
+rich_Schema rich_schema_string[1] = {{
   ._impl = &string_impl,
-};
+}};
 
 /* cstring */
 
@@ -231,8 +245,11 @@ static size_t cstring_size(void* _self) {
   return sizeof(char*);
 }
 static void cstring_close_data(void* _self, void* _data) {
-  char* cstr = *(char**)_data;
-  if (cstr) free(cstr);
+  char** ptr = _data;
+  if (*ptr) {
+    free(*ptr);
+    *ptr = NULL;
+  }
 }
 static rich_Schema_Impl cstring_impl = {
   .sink_impl.sink = cstring_sink,
@@ -240,9 +257,9 @@ static rich_Schema_Impl cstring_impl = {
   .data_size = cstring_size,
   .close_data = cstring_close_data,
 };
-rich_Schema rich_schema_cstring = {
+rich_Schema rich_schema_cstring[1] = {{
   ._impl = &cstring_impl,
-};
+}};
 
 /* Discard */
 
@@ -273,16 +290,17 @@ static void discard_dump(void* _self, void* from, rich_Sink* to) {}
 static size_t discard_size(void* _self) {
   return 0;
 }
+static void discard_close_data(void* _self, void* data) {}
 static rich_Schema_Impl discard_impl = {
   .sink_impl.init_frame = discard_init_frame,
   .sink_impl.sink = discard_sink,
   .dump_value = discard_dump,
   .data_size = discard_size,
-  .close_data = null_close_data,
+  .close_data = discard_close_data,
 };
-rich_Schema rich_schema_discard = {
+rich_Schema rich_schema_discard[1] = {{
   ._impl = &discard_impl,
-};
+}};
 
 /* Vector */
 
@@ -333,8 +351,15 @@ static size_t vector_size(void* _self) {
   return sizeof(Vector);
 }
 static void vector_close_data(void* _self, void* _data) {
+  VectorSchema* self = _self;
   Vector* v = _data;
-  if (v->_data) vector_close(v);
+  if (v->_data) {
+    for (unsigned i = 0; i < v->size; i++) {
+      call(self->of, close_data, vector_get(v, i));
+    }
+    vector_close(v);
+    v->_data = NULL;
+  }
 }
 static void _vector_close(void* _self) {
   VectorSchema* self = _self;
@@ -426,6 +451,7 @@ static void hashtable_close_data(void* _self, void* _data) {
     }
     hashtable_iter(ht, free_entry);
     hashtable_close(ht);
+    ht->hasher = NULL;
   }
 }
 static void _hashtable_close(void* _self) {
@@ -527,7 +553,7 @@ static void struct_sink(void* _self, rich_Reactor* r, rich_Atom atom, void* data
     if (!field) {
       if (self->ignore_unknown) {
         // Delegate to the discard schema
-        rich_schema_push(r, &rich_schema_discard, NULL);
+        rich_schema_push(r, rich_schema_discard, NULL);
       } else {
         RAISE(MALFORMED);
       }
@@ -713,10 +739,11 @@ static size_t pointer_size(void* _self) {
 }
 static void pointer_close_data(void* _self, void* _data) {
   PointerSchema* self = _self;
-  void* ptr = *(void**)_data;
-  if (ptr) {
-    call(self->sub, close_data, ptr);
-    free(ptr);
+  void** ptr = _data;
+  if (*ptr) {
+    call(self->sub, close_data, *ptr);
+    free(*ptr);
+    *ptr = NULL;
   }
 }
 static void pointer_close(void* _self) {

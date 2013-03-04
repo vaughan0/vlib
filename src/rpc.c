@@ -6,80 +6,6 @@
 #include <vlib/rpc.h>
 #include <vlib/io.h>
 
-/* RPCService */
-
-data(Method) {
-  RPCMethod     handler;
-  rich_Schema*  arg_schema;
-  rich_Schema*  result_schema;
-  void*         args;
-  void*         results;
-  rich_Sink*    arg_sink;
-};
-
-data(RPCService) {
-  RPC       base;
-  void*     udata;
-  Hashtable methods[1];
-};
-static RPC_Impl service_impl;
-
-RPC* rpc_service_new(void* udata) {
-  RPCService* self = malloc(sizeof(RPCService));
-  self->base._impl = &service_impl;
-  self->udata = udata;
-  hashtable_init(self->methods, hasher_fnv64str, equaler_str, sizeof(char**), sizeof(RPCService));
-  return &self->base;
-}
-void rpc_service_add(RPC* _self, const char* method, RPCMethod handler, rich_Schema* arg_schema, rich_Schema* result_schema) {
-  RPCService* self = (RPCService*)_self;
-  char* copy = strdup(method);
-  Method* m = hashtable_insert(self->methods, &copy);
-  m->handler = handler;
-  m->arg_schema = arg_schema;
-  m->result_schema = result_schema;
-  m->args = calloc(1, call(arg_schema, data_size));
-  m->results = calloc(1, call(result_schema, data_size));
-  m->arg_sink = rich_bind(arg_schema, m->args);
-}
-
-static void service_call(void* _self, const char* method, rich_Source* arg_source, rich_Sink* result_sink) {
-  RPCService* self = _self;
-  Method* m = hashtable_get(self->methods, &method);
-  if (!m) RAISE(UNAVAILABLE);
-
-  call(m->arg_schema, close_data, m->args);
-  call(m->result_schema, close_data, m->results);
-  call(arg_source, read_value, m->arg_sink);
-
-  m->handler(self->udata, m->args, m->results);
-
-  rich_dump(m->result_schema, m->results, result_sink);
-}
-static void service_close(void* _self) {
-  RPCService* self = _self;
-  int free_method(void* _key, void* _data) {
-    char* key = *(char**)_key;
-    free(key);
-    Method* m = _data;
-    call(m->arg_schema, close_data, m->args);
-    free(m->args);
-    call(m->result_schema, close_data, m->results);
-    free(m->results);
-    call(m->arg_sink, close);
-    call(m->arg_schema, close);
-    call(m->result_schema, close);
-    return HT_CONTINUE;
-  }
-  hashtable_iter(self->methods, free_method);
-  hashtable_close(self->methods);
-  free(self);
-}
-static RPC_Impl service_impl = {
-  .call = service_call,
-  .close = service_close,
-};
-
 /* RPC <=> BinaryRPC mapping */
 
 data(ClientRPC) {
@@ -192,6 +118,123 @@ static void server_close(void* _self) {
 static BinaryRPC_Impl server_impl = {
   .call = server_call,
   .close = server_close,
+};
+
+/* RPCClient */
+
+data(ClientMethod) {
+  const char*   name;
+  rich_Schema*  arg_schema;
+  rich_Source*  arg_source;
+  rich_Schema*  result_schema;
+  rich_Sink*    result_sink;
+};
+
+void rpc_init(RPCClient* self, RPC* backend) {
+  self->backend = backend;
+  vector_init(self->methods, sizeof(ClientMethod), 4);
+}
+void rpc_close(RPCClient* self) {
+  for (unsigned i = 0; i < self->methods->size; i++) {
+    ClientMethod* method = vector_get(self->methods, i);
+    call(method->arg_source, close);
+    call(method->arg_schema, close);
+    call(method->result_sink, close);
+    call(method->result_schema, close);
+  }
+  vector_close(self->methods);
+}
+int rpc_register(RPCClient* self, const char* method_name, rich_Schema* arg_schema, rich_Schema* result_schema) {
+  ClientMethod* method = vector_push(self->methods);
+  method->name = method_name;
+  method->arg_schema = arg_schema;
+  method->arg_source = rich_schema_source(arg_schema, NULL);
+  method->result_schema = result_schema;
+  method->result_sink = rich_bind(result_schema, NULL);
+  return self->methods->size - 1;
+}
+
+void rpc_call(RPCClient* self, int method_index, void* arg, void* result) {
+  ClientMethod* method = vector_get(self->methods, method_index);
+  call(method->arg_schema, close_data, arg);
+  rich_schema_reset(method->arg_source, arg);
+  call(method->result_schema, close_data, result);
+  rich_rebind(method->result_sink, result);
+  call(self->backend, call, method->name, method->arg_source, method->result_sink);
+}
+
+/* RPCService */
+
+data(Method) {
+  RPCMethod     handler;
+  rich_Schema*  arg_schema;
+  rich_Schema*  result_schema;
+  void*         args;
+  void*         results;
+  rich_Sink*    arg_sink;
+};
+
+data(RPCService) {
+  RPC       base;
+  void*     udata;
+  Hashtable methods[1];
+};
+static RPC_Impl service_impl;
+
+RPC* rpc_service_new(void* udata) {
+  RPCService* self = malloc(sizeof(RPCService));
+  self->base._impl = &service_impl;
+  self->udata = udata;
+  hashtable_init(self->methods, hasher_fnv64str, equaler_str, sizeof(char**), sizeof(RPCService));
+  return &self->base;
+}
+void rpc_service_add(RPC* _self, const char* method, RPCMethod handler, rich_Schema* arg_schema, rich_Schema* result_schema) {
+  RPCService* self = (RPCService*)_self;
+  char* copy = strdup(method);
+  Method* m = hashtable_insert(self->methods, &copy);
+  m->handler = handler;
+  m->arg_schema = arg_schema;
+  m->result_schema = result_schema;
+  m->args = calloc(1, call(arg_schema, data_size));
+  m->results = calloc(1, call(result_schema, data_size));
+  m->arg_sink = rich_bind(arg_schema, m->args);
+}
+
+static void service_call(void* _self, const char* method, rich_Source* arg_source, rich_Sink* result_sink) {
+  RPCService* self = _self;
+  Method* m = hashtable_get(self->methods, &method);
+  if (!m) RAISE(UNAVAILABLE);
+
+  call(m->arg_schema, close_data, m->args);
+  call(m->result_schema, close_data, m->results);
+  call(arg_source, read_value, m->arg_sink);
+
+  m->handler(self->udata, m->args, m->results);
+
+  rich_dump(m->result_schema, m->results, result_sink);
+}
+static void service_close(void* _self) {
+  RPCService* self = _self;
+  int free_method(void* _key, void* _data) {
+    char* key = *(char**)_key;
+    free(key);
+    Method* m = _data;
+    call(m->arg_schema, close_data, m->args);
+    free(m->args);
+    call(m->result_schema, close_data, m->results);
+    free(m->results);
+    call(m->arg_sink, close);
+    call(m->arg_schema, close);
+    call(m->result_schema, close);
+    return HT_CONTINUE;
+  }
+  hashtable_iter(self->methods, free_method);
+  hashtable_close(self->methods);
+  free(self);
+}
+static RPC_Impl service_impl = {
+  .call = service_call,
+  .close = service_close,
 };
 
 /* RPC over ZeroMQ */
