@@ -23,5 +23,23 @@ typedef void (*RPCMethod)(void* udata, void* args, void* result);
 RPC*    rpc_service_new(void* udata);
 void    rpc_service_add(RPC* self, const char* method, RPCMethod handler, rich_Schema* arg_schema, rich_Schema* result_schema);
 
+/* Client-side RPC */
+
+interface(BinaryRPC) {
+  void  (*call)(void* self, Bytes method, Bytes args, Output* result);
+  void  (*close)(void* self);
+};
+
+RPC*        rpc_from_binary(BinaryRPC* backend, rich_Codec* codec);
+BinaryRPC*  rpc_to_binary(RPC* backend, rich_Codec* codec);
+
+#ifdef VLIB_ENABLE_ZMQ
+
+#include <zmq.h>
+
+BinaryRPC*  rpc_zmq_new(void* req_socket);
+
+#endif
+
 #endif /* RPC_H_4EFFD6B83F9CFC */
 
