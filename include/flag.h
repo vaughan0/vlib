@@ -40,7 +40,7 @@ void  print_flags(Flags* self, Output* out);
 void  flags_error(Flags* self, const char* error);
 void  flags_errorf(Flags* self, const char* fmt, ...);
 
-void  add_flag(Flags* self, void* ptr, FlagType* type, const char* name, const char* help);
+void  add_flag(Flags* self, FlagType* type, const char* name, void* ptr, const char* help);
 bool  flags_parse(Flags* self, int argc, char* const argv[], Vector* extra);
 
 /* Flag types */

@@ -25,7 +25,7 @@ void flags_close(Flags* self) {
   hashtable_close(self->flags);
 }
 
-void add_flag(Flags* self, void* ptr, FlagType* type, const char* name, const char* help) {
+void add_flag(Flags* self, FlagType* type, const char* name, void* ptr, const char* help) {
   Flag* flag = hashtable_insert(self->flags, &name);
   flag->name = name;
   flag->help = help;
