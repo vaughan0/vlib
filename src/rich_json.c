@@ -47,7 +47,6 @@ static rich_Source_Impl source_impl;
 data(Parser) {
   rich_Source base;
   Input*      in;
-  bool        read_tok;
   Vector      cbuf[1];
   Token       curtok;
 };
@@ -56,7 +55,6 @@ static rich_Source* json_new_source(void* _, Input* in) {
   Parser* self = malloc(sizeof(Parser));
   self->base._impl = &source_impl;
   self->in = in;
-  self->read_tok = false;
   self->curtok.str.sval = NULL;
   TRY {
     vector_init(self->cbuf, sizeof(char), 64);
@@ -355,10 +353,7 @@ static void parse_value(Parser* p, rich_Sink* to) {
 
 static void json_read_value(void* _self, rich_Sink* to) {
   Parser* p = _self;
-  if (!p->read_tok) {
-    gettok(p);
-    p->read_tok = true;
-  }
+  gettok(p);
   parse_value(p, to);
 }
 

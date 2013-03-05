@@ -2,8 +2,9 @@
 local enables = {}
 
 local function applyOptions(options)
-  if options.links then
-    links(options.links)
+  for option, arg in pairs(options) do
+    local func = _G[option]
+    func(arg)
   end
 end
 

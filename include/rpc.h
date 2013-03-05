@@ -42,7 +42,8 @@ void    rpc_call(RPC_Client* self, int method, void* arg, void* result);
 typedef void (*RPCMethod)(void* udata, void* args, void* result);
 
 RPC*    rpc_service_new(void* udata);
-void    rpc_service_add(RPC* self, const char* method, RPCMethod handler, rich_Schema* arg_schema, rich_Schema* result_schema);
+void    rpc_service_cleanup(RPC* self, void (*cleanup_handler)(void* udata));
+void    rpc_add(RPC* self, const char* method, RPCMethod handler, rich_Schema* arg_schema, rich_Schema* result_schema);
 
 /* RPC over ZeroMQ support */
 
