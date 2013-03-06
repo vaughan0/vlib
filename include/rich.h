@@ -56,38 +56,5 @@ interface(rich_Codec) {
 
 extern rich_Sink rich_debug_sink[1];
 
-extern rich_Codec rich_json_codec[1];
-
-/** Reactor utility
- *
- * Note: when pushing and popping from/to the reactor, the current frame data
- * (r->data) may be moved, so be sure to either save the data somewhere or get
- * the pointer from the reactor again after pushing/popping.
- */
-
-data(rich_Reactor) {
-  rich_Sink   base;
-  bool        pop_last; // If false, the last sink will be left on the stack instead of being popped
-  Vector      stack[1];
-  void*       data;
-  void*       global;   // global across stack frames, for user access
-};
-
-interface(rich_Reactor_Sink) {
-  // Called just after the sink is pushed onto the stack, but before any data is passed to it
-  void  (*init_frame)(void* self, void* data);
-  // Called just after the sink is popped from the stack
-  void  (*cleanup_frame)(void* self, void* data);
-  void  (*sink)(void* self, rich_Reactor* r, rich_Atom atom, void* atom_data);
-};
-
-void  rich_reactor_init(rich_Reactor* self, size_t stack_data_sz);
-void  rich_reactor_close(rich_Reactor* self);
-void  rich_reactor_reset(rich_Reactor* self);
-
-// Pushes a new sink on the stack and returns a pointer to the associated extra stack data
-void* rich_reactor_push(rich_Reactor* self, rich_Reactor_Sink* sink);
-void  rich_reactor_pop(rich_Reactor* self);
-
 #endif /* RICH_H_E9E4E2E787721B */
 
