@@ -110,7 +110,6 @@ static size_t stack_alloc(rich_Reactor* self, size_t size) {
     self->stack_cap = offset * 2;
     self->stack_data = realloc(self->stack_data, self->stack_cap);
   }
-  memset(self->stack_data + offset, 0, size);
   return offset;
 }
 static inline void* stack_data(rich_Reactor* self, Frame* frame) {
@@ -122,6 +121,12 @@ void* rich_reactor_push(rich_Reactor* self, const rich_ReactorSink* sink) {
   Frame* frame = vector_push(self->stack);
   frame->sink = sink;
   frame->data_offset = data_offset;
+  if (sink->init_frame) {
+    self->frame = stack_data(self, frame);
+    sink->init_frame(self);
+  } else {
+    memset(stack_data(self, frame), 0, sink->data_size);
+  }
   return stack_data(self, frame);
 }
 void rich_reactor_pop(rich_Reactor* self) {

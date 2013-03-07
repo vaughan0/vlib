@@ -75,6 +75,7 @@ data(rich_Reactor) {
 
 data(rich_ReactorSink) {
   size_t    data_size;
+  void      (*init_frame)(rich_Reactor* reactor);
   void      (*close_frame)(rich_Reactor* reactor);
   void      (*sink)(rich_Reactor* reactor, rich_Atom atom, void* atom_data);
 };
