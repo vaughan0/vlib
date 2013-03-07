@@ -13,3 +13,4 @@ SUITE(gqi);
 SUITE(io);
 SUITE(error);
 SUITE(varint);
+SUITE(rich);
