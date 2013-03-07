@@ -14,7 +14,7 @@ typedef enum {
   // name         data type
   RICH_NIL,       // no data
   RICH_BOOL,      // C bool type
-  RICH_INT,       // C int type
+  RICH_INT,       // C int64 type
   RICH_FLOAT,     // C double type
   RICH_STRING,    // rich_String
   RICH_ARRAY,     // no data
@@ -56,5 +56,38 @@ interface(rich_Codec) {
 
 extern rich_Sink rich_debug_sink[1];
 
-#endif /* RICH_H_E9E4E2E787721B */
+extern rich_Codec rich_codec_json[1];
 
+/* Reactor utility for creating rich_Sinks */
+
+data(rich_Reactor) {
+  rich_Sink   base;
+  void*       frame;
+  void*       global;
+  // closer will be called when the reactor is closed, if it is not NULL
+  void        (*closer)(rich_Reactor* reactor);
+  /* Private fields */
+  Vector      stack[1];
+  char*       stack_data;
+  size_t      stack_cap;
+  char        global_data[];
+};
+
+data(rich_ReactorSink) {
+  size_t    data_size;
+  void      (*close_frame)(rich_Reactor* reactor);
+  void      (*sink)(rich_Reactor* reactor, rich_Atom atom, void* atom_data);
+};
+
+// Creates a new rich_Reactor and allocates `global_data_size` bytes for the reactor's `global` field.
+rich_Reactor* rich_reactor_new(size_t global_data_size);
+void    rich_reactor_reset(rich_Reactor* self);
+
+// Pushes a new sink onto the reactor and returns a pointer to the sink's frame data.
+void*   rich_reactor_push(rich_Reactor* self, const rich_ReactorSink* sink);
+// Pops the top sink off the reactor.
+void    rich_reactor_pop(rich_Reactor* self);
+
+void    rich_reactor_sink(rich_Reactor* self, rich_Atom atom, void* atom_data);
+
+#endif /* RICH_H_E9E4E2E787721B */
