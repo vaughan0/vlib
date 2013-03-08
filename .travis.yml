@@ -6,4 +6,4 @@ install: sudo apt-get install --force-yes premake4
 compiler:
   - gcc
   - clang
-script: premake4 --with-gdbm gmake && make && ./test/run
+script: premake4 --with-gdbm --with-zmq gmake && make && ./test/run
