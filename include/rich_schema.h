@@ -8,12 +8,11 @@ interface(rich_Schema) {
   void    (*dump_value)(void* self, void* value, rich_Sink* to);
   void    (*reset_value)(void* self, void* value);
   void    (*close_value)(void* self, void* value);
-  void    (*push_state)(void* self, Coroutine* co);
+  void    (*push_state)(void* self, Coroutine* co, void* value);
   void    (*close)(void* self);
 };
 
 data(rich_SchemaArg) {
-  void*     value;
   rich_Atom atom;
   void*     data;
 };

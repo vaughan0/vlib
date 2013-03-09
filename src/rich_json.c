@@ -252,31 +252,58 @@ static rich_Source_Impl source_impl = {
 
 /* JSONSink */
 
-static co_State_Impl root_state;
-static co_State_Impl value_state;
-static co_State_Impl array_state;
-static co_State_Impl map_state;
+data(JSONSink) {
+  rich_Sink   base;
+  Output*     out;
+  Coroutine   co[1];
+};
+static rich_Sink_Impl json_sink_impl;
 
-static void sink_close(void* shared) {
-  Output* out = *(Output**)shared;
-  call(out, close);
-}
+data(SinkArg) {
+  Output*     out;
+  rich_Atom   atom;
+  void*       data;
+};
+
+static co_State root_state;
+static co_State value_state;
+static co_State array_state;
+static co_State map_state;
 
 static rich_Sink* json_new_sink(void* _self, Output* out) {
-  rich_CoSink* cosink = rich_cosink_new(sizeof(out));
-  *(Output**)rich_cosink_shared(cosink) = out;
-  cosink->closer = sink_close;
-  coroutine_push(cosink->co, &root_state, NULL);
-  return &cosink->base;
+  JSONSink* self = malloc(sizeof(JSONSink));
+  self->base._impl = &json_sink_impl;
+  self->out = out;
+  coroutine_init(self->co);
+  coroutine_push(self->co, &root_state, 0);
+  return &self->base;
 }
+static void json_sink_sink(void* _self, rich_Atom atom, void* atom_data) {
+  JSONSink* self = _self;
+  SinkArg arg = {
+    .out = self->out,
+    .atom = atom,
+    .data = atom_data,
+  };
+  coroutine_run(self->co, &arg);
+}
+static void json_sink_close(void* _self) {
+  JSONSink* self = _self;
+  coroutine_close(self->co);
+  call(self->out, close);
+  free(self);
+}
+static rich_Sink_Impl json_sink_impl = {
+  .sink = json_sink_sink,
+  .close = json_sink_close,
+};
 
 static void root_run(void* _self, Coroutine* co, void* arg) {
   // Delegate to a value sink
-  coroutine_push(co, &value_state, NULL);
+  coroutine_push(co, &value_state, 0);
   coroutine_run(co, arg);
 }
-static co_State_Impl root_state = {
-  .size = sizeof(co_State),
+static co_State root_state = {
   .run = root_run,
 };
 
@@ -319,71 +346,58 @@ static void encode_string(Output* out, Bytes* str) {
   }
   io_put(out, '"');
 }
-static void value_run(void* _self, Coroutine* co, void* _arg) {
+static void value_run(void* udata, Coroutine* co, void* _arg) {
   coroutine_pop(co);
 
-  rich_SinkArg* arg = _arg;
-  Output* out = *(Output**)arg->shared;
-  rich_Atom atom = arg->atom;
-  void* atom_data = arg->data;
+  SinkArg* arg = _arg;
+  Output* out = arg->out;
 
   char cbuf[100];
   int n;
-  switch (atom) {
+  switch (arg->atom) {
 
     case RICH_NIL:
       io_writelit(out, "null");
       break;
     case RICH_BOOL:
-      if (*(bool*)atom_data) {
+      if (*(bool*)arg->data) {
         io_writelit(out, "true");
       } else {
         io_writelit(out, "false");
       }
       break;
     case RICH_INT:
-      n = snprintf(cbuf, sizeof(cbuf), "%ld", *(int64_t*)atom_data);
+      n = snprintf(cbuf, sizeof(cbuf), "%ld", *(int64_t*)arg->data);
       io_write(out, cbuf, n);
       break;
     case RICH_FLOAT:
-      n = snprintf(cbuf, sizeof(cbuf), "%lg", *(double*)atom_data);
+      n = snprintf(cbuf, sizeof(cbuf), "%lg", *(double*)arg->data);
       io_write(out, cbuf, n);
       break;
     case RICH_STRING:
-      encode_string(out, atom_data);
+      encode_string(out, arg->data);
       break;
 
     case RICH_ARRAY:
       io_put(out, '[');
-      coroutine_push(co, &array_state, NULL);
+      *(bool*)coroutine_push(co, &array_state, sizeof(bool)) = false;
       break;
     case RICH_MAP:
       io_put(out, '{');
-      coroutine_push(co, &map_state, NULL);
+      *(bool*)coroutine_push(co, &map_state, sizeof(bool)) = false;
       break;
 
     default:
       RAISE(MALFORMED);
   }
 }
-static co_State_Impl value_state = {
-  .size = sizeof(co_State),
+static co_State value_state = {
   .run = value_run,
 };
 
-data(CompoundState) {
-  co_State  base;
-  bool      first;
-};
-static void compound_init(void* _self, void* init_arg) {
-  CompoundState* self = _self;
-  self->first = true;
-}
-
-static void array_run(void* _self, Coroutine* co, void* _arg) {
-  CompoundState* self = _self;
-  rich_SinkArg* arg = _arg;
-  Output* out = *(Output**)arg->shared;
+static void array_run(void* udata, Coroutine* co, void* _arg) {
+  SinkArg* arg = _arg;
+  Output* out = arg->out;
   if (arg->atom == RICH_ENDARRAY) {
     io_put(out, ']');
     coroutine_pop(co);
@@ -391,26 +405,24 @@ static void array_run(void* _self, Coroutine* co, void* _arg) {
   }
 
   // Print comma between elements
-  if (self->first) {
-    self->first = false;
-  } else {
+  bool* comma = udata;
+  if (*comma) {
     io_put(out, ',');
+  } else {
+    *comma = true;
   }
 
   // Delegate to the value sink
-  coroutine_push(co, &value_state, NULL);
+  coroutine_push(co, &value_state, 0);
   coroutine_run(co, arg);
 }
-static co_State_Impl array_state = {
-  .size = sizeof(CompoundState),
-  .init = compound_init,
+static co_State array_state = {
   .run = array_run,
 };
 
-static void map_run(void* _self, Coroutine* co, void* _arg) {
-  CompoundState* self = _self;
-  rich_SinkArg* arg = _arg;
-  Output* out = *(Output**)arg->shared;
+static void map_run(void* udata, Coroutine* co, void* _arg) {
+  SinkArg* arg = _arg;
+  Output* out = arg->out;
   if (arg->atom == RICH_ENDMAP) {
     io_put(out, '}');
     coroutine_pop(co);
@@ -418,22 +430,21 @@ static void map_run(void* _self, Coroutine* co, void* _arg) {
   } else if (arg->atom == RICH_KEY) {
 
     // Print comma between elements
-    if (self->first) {
-      self->first = false;
-    } else {
+    bool* comma = udata;
+    if (*comma) {
       io_put(out, ',');
+    } else {
+      *comma = true;
     }
 
     encode_string(out, arg->data);
     io_put(out, ':');
   } else {
-    coroutine_push(co, &value_state, NULL);
+    coroutine_push(co, &value_state, 0);
     coroutine_run(co, arg);
   }
 }
-static co_State_Impl map_state = {
-  .size = sizeof(CompoundState),
-  .init = compound_init,
+static co_State map_state = {
   .run = map_run,
 };
 

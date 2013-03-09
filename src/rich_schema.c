@@ -37,28 +37,26 @@ static rich_Source_Impl bound_source_impl = {
 
 data(BoundSink) {
   rich_Sink     base;
-  Coroutine     co[1];
   rich_Schema*  schema;
   void*         to;
+  Coroutine     co[1];
 };
 static rich_Sink_Impl bound_sink_impl;
 
-static co_State_Impl sink_root_state;
+static co_State sink_root_state;
 
 rich_Sink* rich_bind_sink(rich_Schema* schema, void* to) {
   BoundSink* self = malloc(sizeof(BoundSink));
   self->base._impl = &bound_sink_impl;
-  coroutine_init(self->co);
   self->schema = schema;
   self->to = to;
-  coroutine_push(self->co, &sink_root_state, self);
+  coroutine_init(self->co);
+  *(BoundSink**)coroutine_push(self->co, &sink_root_state, sizeof(BoundSink*)) = self;
   return &self->base;
 }
 static void bound_sink_sink(void* _self, rich_Atom atom, void* atom_data) {
   BoundSink* self = _self;
-  call(self->schema, reset_value, self->to);
   rich_SchemaArg arg = {
-    .value = self->to,
     .atom = atom,
     .data = atom_data,
   };
@@ -67,8 +65,6 @@ static void bound_sink_sink(void* _self, rich_Atom atom, void* atom_data) {
 static void bound_sink_close(void* _self) {
   BoundSink* self = _self;
   coroutine_close(self->co);
-  if (self->schema->_impl->close_value) call(self->schema, close_value, self->to);
-  if (self->schema->_impl->close) call(self->schema, close);
   free(self);
 }
 static rich_Sink_Impl bound_sink_impl = {
@@ -76,47 +72,36 @@ static rich_Sink_Impl bound_sink_impl = {
   .close = bound_sink_close,
 };
 
-data(RootState) {
-  co_State    base;
-  BoundSink*  sink;
-};
-static void sink_root_init(void* _self, void* _arg) {
-  RootState* self = _self;
-  self->sink = _arg;
+static void root_state_run(void* udata, Coroutine* co, void* arg) {
+  BoundSink* self = *(BoundSink**)udata;
+  call(self->schema, push_state, co, self->to);
+  coroutine_run(self->co, arg);
 }
-static void sink_root_run(void* _self, Coroutine* co, void* _arg) {
-  RootState* self = _self;
-  // Delegate to schema
-  call(self->sink->schema, push_state, co);
-  coroutine_run(co, _arg);
-}
-static co_State_Impl sink_root_state = {
-  .size = sizeof(RootState),
-  .init = sink_root_init,
-  .run = sink_root_run,
+static co_State sink_root_state = {
+  .run = root_state_run,
 };
 
 /* Bool */
 
-static co_State_Impl bool_state;
+static co_State bool_state;
 static void bool_dump_value(void* _self, void* _value, rich_Sink* to) {
   call(to, sink, RICH_BOOL, _value);
 }
 static void bool_reset_value(void* _self, void* _value) {
   *(bool*)_value = false;
 }
-static void bool_push_state(void* _self, Coroutine* co) {
-  coroutine_push(co, &bool_state, NULL);
+static void bool_push_state(void* _self, Coroutine* co, void* value) {
+  *(void**)coroutine_push(co, &bool_state, sizeof(void*)) = value;
 }
 
-static void bool_sink_run(void* _self, Coroutine* co, void* _arg) {
+static void bool_sink_run(void* udata, Coroutine* co, void* _arg) {
   rich_SchemaArg* arg = _arg;
   if (arg->atom != RICH_BOOL) RAISE(MALFORMED);
-  *(bool*)arg->value = *(bool*)arg->data;
+  bool* value = *(void**)udata;
+  *value = *(bool*)arg->data;
   coroutine_pop(co);
 }
-static co_State_Impl bool_state = {
-  .size = sizeof(co_State),
+static co_State bool_state = {
   .run = bool_sink_run,
 };
 static rich_Schema_Impl bool_impl = {
