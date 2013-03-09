@@ -3,7 +3,7 @@
 #include <string.h>
 #include <stdio.h>
 
-#include <vlib/rich_bind.h>
+#include <vlib/rich_schema.h>
 #include <vlib/util.h>
 
 data(BoundSource) {
