@@ -24,6 +24,7 @@
 
 data(Bytes) {
   size_t  size;
+  size_t  cap;
   void*   ptr;
 };
 

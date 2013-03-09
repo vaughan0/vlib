@@ -21,5 +21,8 @@ rich_Source*  rich_bind_source(rich_Schema* schema, void* from);
 rich_Sink*    rich_bind_sink(rich_Schema* schema, void* to);
 
 extern rich_Schema rich_schema_bool[1];
+extern rich_Schema rich_schema_int64[1];
+extern rich_Schema rich_schema_double[1];
+extern rich_Schema rich_schema_bytes[1];
 
 #endif /* RICH_BIND_H_9AA13EB5361B53 */

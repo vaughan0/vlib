@@ -113,3 +113,119 @@ static rich_Schema_Impl bool_impl = {
 rich_Schema rich_schema_bool[1] = {{
   ._impl = &bool_impl,
 }};
+
+/* Int64 */
+
+static co_State int64_state;
+static void int64_dump_value(void* _self, void* _value, rich_Sink* to) {
+  call(to, sink, RICH_INT, _value);
+}
+static void int64_reset_value(void* _self, void* _value) {
+  *(int64_t*)_value = 0;
+}
+static void int64_push_state(void* _self, Coroutine* co, void* value) {
+  *(void**)coroutine_push(co, &int64_state, sizeof(void*)) = value;
+}
+
+static void int64_sink_run(void* udata, Coroutine* co, void* _arg) {
+  rich_SchemaArg* arg = _arg;
+  if (arg->atom != RICH_INT) RAISE(MALFORMED);
+  int64_t* value = *(void**)udata;
+  *value = *(int64_t*)arg->data;
+  coroutine_pop(co);
+}
+static co_State int64_state = {
+  .run = int64_sink_run,
+};
+static rich_Schema_Impl int64_impl = {
+  .dump_value = int64_dump_value,
+  .reset_value = int64_reset_value,
+  .push_state = int64_push_state,
+  .close = null_close,
+};
+rich_Schema rich_schema_int64[1] = {{
+  ._impl = &int64_impl,
+}};
+
+/* Double */
+
+static co_State double_state;
+static void double_dump_value(void* _self, void* _value, rich_Sink* to) {
+  call(to, sink, RICH_FLOAT, _value);
+}
+static void double_reset_value(void* _self, void* _value) {
+  *(double*)_value = 0;
+}
+static void double_push_state(void* _self, Coroutine* co, void* value) {
+  *(void**)coroutine_push(co, &double_state, sizeof(void*)) = value;
+}
+
+static void double_sink_run(void* udata, Coroutine* co, void* _arg) {
+  rich_SchemaArg* arg = _arg;
+  if (arg->atom != RICH_FLOAT) RAISE(MALFORMED);
+  double* value = *(void**)udata;
+  *value = *(double*)arg->data;
+  coroutine_pop(co);
+}
+static co_State double_state = {
+  .run = double_sink_run,
+};
+static rich_Schema_Impl double_impl = {
+  .dump_value = double_dump_value,
+  .reset_value = double_reset_value,
+  .push_state = double_push_state,
+  .close = null_close,
+};
+rich_Schema rich_schema_double[1] = {{
+  ._impl = &double_impl,
+}};
+
+/* Bytes */
+
+static co_State bytes_state;
+static void bytes_dump_value(void* _self, void* _value, rich_Sink* to) {
+  call(to, sink, RICH_STRING, _value);
+}
+static void bytes_reset_value(void* _self, void* _value) {
+  Bytes* value = _value;
+  value->size = 0;
+}
+static void bytes_close_value(void* _self, void* _value) {
+  Bytes* value = _value;
+  if (value->ptr) {
+    free(value->ptr);
+    value->ptr = NULL;
+  }
+}
+static void bytes_push_state(void* _self, Coroutine* co, void* value) {
+  *(void**)coroutine_push(co, &bytes_state, sizeof(void*)) = value;
+}
+
+static void bytes_sink_run(void* udata, Coroutine* co, void* _arg) {
+  rich_SchemaArg* arg = _arg;
+  if (arg->atom != RICH_STRING) RAISE(MALFORMED);
+  Bytes* value = *(void**)udata;
+  Bytes* src = arg->data;
+  if (!value->ptr) {
+    value->cap = src->size;
+    value->ptr = malloc(value->cap);
+  } else if (src->size > value->cap) {
+    value->cap = src->size;
+    value->ptr = realloc(value->ptr, value->cap);
+  }
+  value->size = src->size;
+  memcpy(value->ptr, src->ptr, value->size);
+}
+static co_State bytes_state = {
+  .run = bytes_sink_run,
+};
+static rich_Schema_Impl bytes_impl = {
+  .dump_value = bytes_dump_value,
+  .reset_value = bytes_reset_value,
+  .close_value = bytes_close_value,
+  .push_state = bytes_push_state,
+  .close = null_close,
+};
+rich_Schema rich_schema_bytes[1] = {{
+  ._impl = &bytes_impl,
+}};
