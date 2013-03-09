@@ -7,6 +7,7 @@
 #include <vlib/time.h>
 #include <vlib/io.h>
 #include <vlib/vector.h>
+#include <vlib/rich.h>
 
 enum {
   LOGGER_NAME_MAX = 128,
@@ -38,10 +39,16 @@ interface(LogBackend) {
   void  (*close)(void* self);
 };
 
+LogBackend*   logbackend_unclosable_new(LogBackend* wrap);
+void          logbackend_close(LogBackend* unclosable);
+
 interface(LogFormatter) {
   void  (*format_message)(void* self, LogMsg* msg, Output* to);
   void  (*close)(void* self);
 };
+
+LogFormatter* logformatter_unclosable_new(LogFormatter* wrap);
+void          logformatter_close(LogFormatter* unclosable);
 
 LogBackend*   logbackend_format_new(LogFormatter* formatter, Output* out);
 
@@ -90,6 +97,19 @@ void          logging_reset();
 
 Logger*       get_logger(const char* name);
 void          add_logbackend(Logger* self, LogBackend* backend);
+
+/* Configuration */
+
+interface(LogFactory) {
+  // Returns a new LogBackend from a map of options. Use the log_get_option function to
+  // retrieve the option values.
+  LogBackend* (*create_backend)(void* self, Hashtable* options);
+  void        (*close)(void* self);
+};
+
+const char*   log_get_option(Hashtable* options, const char* name);
+
+void          log_register(const char* backend_type_name, LogFactory* factory);
 
 /* Standard logging methods */
 

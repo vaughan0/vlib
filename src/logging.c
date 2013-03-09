@@ -7,6 +7,7 @@
 
 #include <vlib/logging.h>
 #include <vlib/hashtable.h>
+#include <vlib/util.h>
 
 /* Loggers */
 
@@ -130,6 +131,60 @@ void log_vmsgf_extra(Logger* self, LogLevel level, const char* file, int line, c
   vsnprintf(cbuf, sizeof(cbuf), fmt, ap);
   log_msg_extra(self, level, cbuf, file, line);
 }
+
+/* Unclosable utilities */
+
+data(UnclosableBackend) {
+  LogBackend    base;
+  LogBackend*   wrap;
+};
+static LogBackend_Impl unclosable_backend_impl;
+
+LogBackend* logbackend_unclosable_new(LogBackend* wrap) {
+  UnclosableBackend* self = malloc(sizeof(UnclosableBackend));
+  self->base._impl = &unclosable_backend_impl;
+  self->wrap = wrap;
+  return &self->base;
+}
+void logbackend_close(LogBackend* _self) {
+  UnclosableBackend* self = (UnclosableBackend*)_self;
+  call(self->wrap, close);
+  free(self);
+}
+static void unclosable_log_message(void* _self, LogMsg* msg) {
+  UnclosableBackend* self = _self;
+  call(self->wrap, log_message, msg);
+}
+static LogBackend_Impl unclosable_backend_impl = {
+  .log_message = unclosable_log_message,
+  .close = null_close,
+};
+
+data(UnclosableFormatter) {
+  LogFormatter  base;
+  LogFormatter* wrap;
+};
+static LogFormatter_Impl unclosable_formatter_impl;
+
+LogFormatter* logformatter_unclosable_new(LogFormatter* wrap) {
+  UnclosableFormatter* self = malloc(sizeof(UnclosableFormatter));
+  self->base._impl = &unclosable_formatter_impl;
+  self->wrap = wrap;
+  return &self->base;
+}
+void logformatter_close(LogFormatter* _self) {
+  UnclosableFormatter* self = (UnclosableFormatter*)_self;
+  call(self->wrap, close);
+  free(self);
+}
+static void unclosable_format_message(void* _self, LogMsg* msg, Output* to) {
+  UnclosableFormatter* self = _self;
+  call(self->wrap, format_message, msg, to);
+}
+static LogFormatter_Impl unclosable_formatter_impl = {
+  .format_message = unclosable_format_message,
+  .close = null_close,
+};
 
 /* FormatBackend */
 
