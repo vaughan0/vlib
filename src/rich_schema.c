@@ -82,6 +82,55 @@ static co_State sink_root_state = {
   .run = root_state_run,
 };
 
+/* Unclosable schema */
+
+data(UnclosableSchema) {
+  rich_Schema   base;
+  rich_Schema*  wrap;
+};
+static rich_Schema_Impl unclosable_impl;
+
+rich_Schema* rich_schema_unclosable(rich_Schema* wrap) {
+  UnclosableSchema* self = malloc(sizeof(UnclosableSchema));
+  self->base._impl = &unclosable_impl;
+  self->wrap = wrap;
+  return &self->base;
+}
+void rich_schema_close(rich_Schema* _self) {
+  UnclosableSchema* self = (UnclosableSchema*)_self;
+  call(self->wrap, close);
+  free(self);
+}
+static size_t unclosable_data_size(void* _self) {
+  UnclosableSchema* self = _self;
+  return call(self->wrap, data_size);
+}
+static void unclosable_dump_value(void* _self, void* _value, rich_Sink* to) {
+  UnclosableSchema* self = _self;
+  call(self->wrap, dump_value, _value, to);
+}
+static void unclosable_reset_value(void* _self, void* value) {
+  UnclosableSchema* self = _self;
+  call(self->wrap, reset_value, value);
+}
+static void unclosable_close_value(void* _self, void* value) {
+  UnclosableSchema* self = _self;
+  call(self->wrap, close_value, value);
+}
+static void unclosable_push_state(void* _self, Coroutine* co, void* value) {
+  UnclosableSchema* self = _self;
+  call(self->wrap, push_state, co, value);
+}
+static rich_Schema_Impl unclosable_impl = {
+  .data_size = unclosable_data_size,
+  .dump_value = unclosable_dump_value,
+  .close_value = unclosable_close_value,
+  .reset_value = unclosable_reset_value,
+  .close_value = unclosable_close_value,
+  .push_state = unclosable_push_state,
+  .close = null_close,
+};
+
 /* Bool */
 
 static co_State bool_state;

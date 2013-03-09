@@ -13,6 +13,9 @@ interface(rich_Schema) {
   void    (*close)(void* self);
 };
 
+rich_Schema*        rich_schema_unclosable(rich_Schema* wrap);
+void                rich_schema_close(rich_Schema* unclosable);
+
 data(rich_SchemaArg) {
   rich_Atom atom;
   void*     data;
@@ -26,9 +29,15 @@ extern rich_Schema  rich_schema_int64[1];
 extern rich_Schema  rich_schema_double[1];
 extern rich_Schema  rich_schema_bytes[1];
 
+rich_Schema*        rich_schema_pointer(rich_Schema* to);
+rich_Schema*        rich_schema_optional(rich_Schema* wrap);
+
 rich_Schema*        rich_schema_vector(rich_Schema* of);
 
 // Uses Bytes objects as keys.
 rich_Schema*        rich_schema_hashtable(rich_Schema* of);
+
+rich_Schema*        rich_schema_struct();
+void                rich_add_field(rich_Schema* self, const char* name, rich_Schema* field_type);
 
 #endif /* RICH_BIND_H_9AA13EB5361B53 */
