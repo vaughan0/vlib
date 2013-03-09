@@ -2,28 +2,25 @@
 #define VLIB_COROUTINE_H
 
 #include <vlib/std.h>
-#include <vlib/vector.h>
+#include <vlib/bytestack.h>
 
 struct Coroutine;
 
-interface(co_State) {
-  size_t  size;
-  void    (*init)(void* self, void* init_arg);
-  void    (*run)(void* self, struct Coroutine* co, void* arg);
-  void    (*close)(void* self);
+data(co_State) {
+  void      (*run)(void* udata, struct Coroutine* co, void* arg);
+  void      (*close)(void* udata);
 };
 
 data(Coroutine) {
-  Vector    stack[1];
-  char*     data;
-  size_t    data_size;
-  size_t    data_used;
+  ByteStack stack[1];
 };
 
 void  coroutine_init(Coroutine* self);
 void  coroutine_close(Coroutine* self);
 
-void  coroutine_push(Coroutine* self, co_State_Impl* impl, void* init_arg);
+// Pushes a new state onto the coroutine's stack and allocates `udata_size` bytes for
+// the state's user data. Returns a pointer to the user data.
+void* coroutine_push(Coroutine* self, co_State* state, size_t udata_size);
 void  coroutine_pop(Coroutine* self);
 
 void  coroutine_run(Coroutine* self, void* arg);
