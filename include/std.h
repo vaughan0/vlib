@@ -28,5 +28,9 @@ data(Bytes) {
   void*   ptr;
 };
 
+void  bytes_init(Bytes* self, size_t cap);
+void  bytes_close(Bytes* self);
+void  bytes_copy(Bytes* self, const Bytes* from);
+
 #endif /* STD_H_95ECC92A271C4F */
 

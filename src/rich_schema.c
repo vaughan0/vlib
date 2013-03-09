@@ -4,6 +4,7 @@
 #include <stdio.h>
 
 #include <vlib/rich_schema.h>
+#include <vlib/hashtable.h>
 #include <vlib/util.h>
 
 data(BoundSource) {
@@ -84,6 +85,9 @@ static co_State sink_root_state = {
 /* Bool */
 
 static co_State bool_state;
+static size_t bool_data_size(void* _self) {
+  return sizeof(bool);
+}
 static void bool_dump_value(void* _self, void* _value, rich_Sink* to) {
   call(to, sink, RICH_BOOL, _value);
 }
@@ -105,6 +109,7 @@ static co_State bool_state = {
   .run = bool_sink_run,
 };
 static rich_Schema_Impl bool_impl = {
+  .data_size = bool_data_size,
   .dump_value = bool_dump_value,
   .reset_value = bool_reset_value,
   .push_state = bool_push_state,
@@ -117,6 +122,9 @@ rich_Schema rich_schema_bool[1] = {{
 /* Int64 */
 
 static co_State int64_state;
+static size_t int64_data_size(void* _self) {
+  return sizeof(int64_t);
+}
 static void int64_dump_value(void* _self, void* _value, rich_Sink* to) {
   call(to, sink, RICH_INT, _value);
 }
@@ -138,6 +146,7 @@ static co_State int64_state = {
   .run = int64_sink_run,
 };
 static rich_Schema_Impl int64_impl = {
+  .data_size = int64_data_size,
   .dump_value = int64_dump_value,
   .reset_value = int64_reset_value,
   .push_state = int64_push_state,
@@ -150,6 +159,9 @@ rich_Schema rich_schema_int64[1] = {{
 /* Double */
 
 static co_State double_state;
+static size_t double_data_size(void* _self) {
+  return sizeof(double);
+}
 static void double_dump_value(void* _self, void* _value, rich_Sink* to) {
   call(to, sink, RICH_FLOAT, _value);
 }
@@ -171,6 +183,7 @@ static co_State double_state = {
   .run = double_sink_run,
 };
 static rich_Schema_Impl double_impl = {
+  .data_size = double_data_size,
   .dump_value = double_dump_value,
   .reset_value = double_reset_value,
   .push_state = double_push_state,
@@ -183,6 +196,9 @@ rich_Schema rich_schema_double[1] = {{
 /* Bytes */
 
 static co_State bytes_state;
+static size_t bytes_data_size(void* _self) {
+  return sizeof(Bytes);
+}
 static void bytes_dump_value(void* _self, void* _value, rich_Sink* to) {
   call(to, sink, RICH_STRING, _value);
 }
@@ -220,6 +236,7 @@ static co_State bytes_state = {
   .run = bytes_sink_run,
 };
 static rich_Schema_Impl bytes_impl = {
+  .data_size = bytes_data_size,
   .dump_value = bytes_dump_value,
   .reset_value = bytes_reset_value,
   .close_value = bytes_close_value,
@@ -229,3 +246,209 @@ static rich_Schema_Impl bytes_impl = {
 rich_Schema rich_schema_bytes[1] = {{
   ._impl = &bytes_impl,
 }};
+
+/* Vector */
+
+data(VectorSchema) {
+  rich_Schema   base;
+  rich_Schema*  of;
+};
+static rich_Schema_Impl vector_impl;
+
+data(VectorData) {
+  rich_Schema*  of;
+  Vector*       v;
+};
+static co_State vector_state;
+
+rich_Schema* rich_schema_vector(rich_Schema* of) {
+  VectorSchema* self = malloc(sizeof(VectorSchema));
+  self->base._impl = &vector_impl;
+  self->of = of;
+  return &self->base;
+}
+static size_t vector_data_size(void* _self) {
+  return sizeof(Vector);
+}
+static void vector_dump_value(void* _self, void* _value, rich_Sink* to) {
+  VectorSchema* self = _self;
+  Vector* v = _value;
+  if (!v->_data) {
+    call(to, sink, RICH_NIL, NULL);
+    return;
+  }
+  for (unsigned i = 0; i < v->size; i++) {
+    call(self->of, dump_value, vector_get(v, i), to);
+  }
+  call(to, sink, RICH_ENDARRAY, NULL);
+}
+static void vector_reset_value(void* _self, void* _value) {
+  VectorSchema* self = _self;
+  Vector* v = _value;
+  if (v->_data) {
+    for (unsigned i = 0; i < v->size; i++) {
+      call(self->of, close_value, vector_get(v, i));
+    }
+    vector_clear(v);
+  } else {
+    vector_init(v, call(self->of, data_size), 4);
+  }
+}
+static void vector_close_value(void* _self, void* _value) {
+  VectorSchema* self = _self;
+  Vector* v = _value;
+  if (v->_data) {
+    for (unsigned i = 0; i < v->size; i++) {
+      call(self->of, close_value, vector_get(v, i));
+    }
+    vector_close(v);
+  }
+}
+static void vector_push_state(void* _self, Coroutine* co, void* _value) {
+  VectorSchema* self = _self;
+  VectorData* arg = coroutine_push(co, &vector_state, sizeof(VectorData));
+  arg->of = self->of;
+  arg->v = _value;
+}
+static void vector_schema_close(void* _self) {
+  VectorSchema* self = _self;
+  call(self->of, close);
+  free(self);
+}
+static rich_Schema_Impl vector_impl = {
+  .data_size = vector_data_size,
+  .dump_value = vector_dump_value,
+  .reset_value = vector_reset_value,
+  .close_value = vector_close_value,
+  .push_state = vector_push_state,
+  .close = vector_schema_close,
+};
+
+static void vector_state_run(void* udata, Coroutine* co, void* _arg) {
+  VectorData* data = udata;
+  rich_SchemaArg* arg = _arg;
+  if (arg->atom == RICH_ARRAY) {
+    return;
+  } else if (arg->atom == RICH_ENDARRAY) {
+    coroutine_pop(co);
+  } else {
+    // Delegate to sub schema
+    void* value = vector_push(data->v);
+    call(data->of, push_state, co, value);
+    coroutine_run(co, arg);
+  }
+}
+static co_State vector_state = {
+  .run = vector_state_run,
+};
+
+/* Hashtable */
+
+data(HashtableSchema) {
+  rich_Schema   base;
+  rich_Schema*  of;
+};
+static rich_Schema_Impl hashtable_impl;
+
+data(HashtableData) {
+  rich_Schema*  of;
+  Hashtable*    ht;
+  Bytes         key[1];
+};
+static co_State hashtable_state;
+
+rich_Schema* rich_schema_hashtable(rich_Schema* of) {
+  HashtableSchema* self = malloc(sizeof(HashtableSchema));
+  self->base._impl = &hashtable_impl;
+  self->of = of;
+  return &self->base;
+}
+static size_t hashtable_data_size(void* _self) {
+  return sizeof(Hashtable);
+}
+static void hashtable_dump_value(void* _self, void* _value, rich_Sink* to) {
+  HashtableSchema* self = _self;
+  Hashtable* ht = _value;
+  if (!ht->_buckets) {
+    call(to, sink, RICH_NIL, NULL);
+    return;
+  }
+  call(to, sink, RICH_MAP, NULL);
+  int process_entry(void* _key, void* _data) {
+    Bytes* key = _key;
+    call(to, sink, RICH_KEY, key);
+    call(self->of, dump_value, _data, to);
+    return HT_CONTINUE;
+  }
+  hashtable_iter(ht, process_entry);
+  call(to, sink, RICH_ENDMAP, NULL);
+}
+static void clear_hashtable(HashtableSchema* self, Hashtable* ht) {
+  int free_entry(void* _key, void* _value) {
+    Bytes* key = _key;
+    free(key->ptr);
+    call(self->of, close_value, _value);
+    return HT_CONTINUE | HT_REMOVE;
+  }
+  hashtable_iter(ht, free_entry);
+}
+static void hashtable_reset_value(void* _self, void* _value) {
+  HashtableSchema* self = _self;
+  Hashtable* ht = _value;
+  if (ht->_buckets) {
+    clear_hashtable(self, ht);
+  } else {
+    hashtable_init(ht, hasher_bytes, equaler_bytes, sizeof(Bytes), call(self->of, data_size));
+  }
+}
+static void hashtable_close_value(void* _self, void* _value) {
+  HashtableSchema* self = _self;
+  Hashtable* ht = _value;
+  if (ht->_buckets) {
+    clear_hashtable(self, ht);
+    hashtable_close(ht);
+  }
+}
+static void hashtable_push_state(void* _self, Coroutine* co, void* _value) {
+  HashtableSchema* self = _self;
+  Hashtable* ht = _value;
+  HashtableData* data = coroutine_push(co, &hashtable_state, sizeof(HashtableData));
+  data->of = self->of;
+  data->ht = ht;
+  bytes_init(data->key, 16);
+}
+static void hashtable_schema_close(void* _self) {
+  HashtableSchema* self = _self;
+  call(self->of, close);
+  free(self);
+}
+static rich_Schema_Impl hashtable_impl = {
+  .data_size = hashtable_data_size,
+  .dump_value = hashtable_dump_value,
+  .reset_value = hashtable_reset_value,
+  .close_value = hashtable_close_value,
+  .push_state = hashtable_push_state,
+  .close = hashtable_schema_close,
+};
+
+static void hashtable_state_run(void* udata, Coroutine* co, void* _arg) {
+  HashtableData* data = udata;
+  rich_SchemaArg* arg = _arg;
+  if (arg->atom == RICH_MAP) {
+    return;
+  } else if (arg->atom == RICH_ENDMAP) {
+    coroutine_pop(co);
+  } else if (arg->atom == RICH_KEY) {
+    bytes_copy(data->key, arg->data);
+    // Delegate value to sub schema
+    Bytes copy = {.ptr = NULL};
+    bytes_copy(&copy, data->key);
+    void* value = hashtable_insert(data->ht, &copy);
+    call(data->of, push_state, co, value);
+  } else {
+    RAISE(MALFORMED);
+  }
+}
+static co_State hashtable_state = {
+  .run = hashtable_state_run,
+};

@@ -61,11 +61,13 @@ enum {
 
 /* Builtin hasher/equaler functions */
 
-uint64_t hasher_fnv64(const void*, size_t);
-uint64_t hasher_fnv64str(const void*, size_t);
+uint64_t  hasher_fnv64(const void*, size_t);
+uint64_t  hasher_fnv64str(const void*, size_t);
+uint64_t  hasher_bytes(const void*, size_t);
 
-int equaler_str(const void*, const void*, size_t);
-int equaler_ptr(const void*, const void*, size_t);
+int       equaler_str(const void*, const void*, size_t);
+int       equaler_ptr(const void*, const void*, size_t);
+int       equaler_bytes(const void*, const void*, size_t);
 
 #endif /* HASHTABLE_H_32EEA1B43F51D3 */
 
