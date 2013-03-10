@@ -296,6 +296,137 @@ rich_Schema rich_schema_bytes[1] = {{
   ._impl = &bytes_impl,
 }};
 
+/* Pointer */
+
+data(PointerSchema) {
+  rich_Schema   base;
+  rich_Schema*  of;
+};
+static rich_Schema_Impl pointer_impl;
+
+rich_Schema* rich_schema_pointer(rich_Schema* of) {
+  PointerSchema* self = malloc(sizeof(PointerSchema));
+  self->base._impl = &pointer_impl;
+  self->of = of;
+  return &self->base;
+}
+static size_t pointer_data_size(void* _self) {
+  return sizeof(void**);
+}
+static void pointer_dump_vaule(void* _self, void* value, rich_Sink* to) {
+  PointerSchema* self = _self;
+  void** ptr = value;
+  if (*ptr) {
+    call(self->of, dump_value, *ptr, to);
+  } else {
+    call(to, sink, RICH_NIL, NULL);
+  }
+}
+static void pointer_reset_value(void* _self, void* value) {
+  PointerSchema* self = _self;
+  void** ptr = value;
+  if (*ptr == NULL) {
+    size_t sz = call(self->of, data_size);
+    *ptr = calloc(sz, 1);
+  }
+  call(self->of, reset_value, *ptr);
+}
+static void pointer_close_value(void* _self, void* value) {
+  PointerSchema* self = _self;
+  void** ptr = value;
+  if (*ptr) {
+    call(self->of, close_value, *ptr);
+    *ptr = NULL;
+  }
+}
+static void pointer_push_state(void* _self, Coroutine* co, void* value) {
+  PointerSchema* self = _self;
+  void** ptr = value;
+  assert(*ptr);
+  call(self->of, push_state, co, *ptr);
+}
+static void pointer_close(void* _self) {
+  PointerSchema* self = _self;
+  call(self->of, close);
+  free(self);
+}
+static rich_Schema_Impl pointer_impl = {
+  .data_size = pointer_data_size,
+  .dump_value = pointer_dump_vaule,
+  .reset_value = pointer_reset_value,
+  .close_value = pointer_close_value,
+  .push_state = pointer_push_state,
+  .close = pointer_close,
+};
+
+/* Optional */
+
+data(OptionalSchema) {
+  rich_Schema   base;
+  rich_Schema*  wrap;
+};
+static rich_Schema_Impl optional_impl;
+
+data(OptionalData) {
+  rich_Schema*  wrap;
+  void*         value;
+};
+static co_State optional_state;
+
+rich_Schema* rich_schema_optional(rich_Schema* wrap) {
+  OptionalSchema* self = malloc(sizeof(OptionalSchema));
+  self->base._impl = &optional_impl;
+  self->wrap = wrap;
+  return &self->base;
+}
+static size_t optional_data_size(void* _self) {
+  OptionalSchema* self = _self;
+  return call(self->wrap, data_size);
+}
+static void optional_dump_value(void* _self, void* value, rich_Sink* to) {
+  OptionalSchema* self = _self;
+  call(self->wrap, dump_value, value, to);
+}
+static void optional_reset_value(void* _self, void* value) {
+  OptionalSchema* self = _self;
+  call(self->wrap, reset_value, value);
+}
+static void optional_close_value(void* _self, void* value) {
+  OptionalSchema* self = _self;
+  call(self->wrap, close_value, value);
+}
+static void optional_push_state(void* _self, Coroutine* co, void* value) {
+  OptionalSchema* self = _self;
+  OptionalData* data = coroutine_push(co, &optional_state, sizeof(OptionalData));
+  data->wrap = self->wrap;
+  data->value = value;
+}
+static void optional_close(void* _self) {
+  OptionalSchema* self = _self;
+  call(self->wrap, close);
+  free(self);
+}
+static rich_Schema_Impl optional_impl = {
+  .data_size = optional_data_size,
+  .dump_value = optional_dump_value,
+  .reset_value = optional_reset_value,
+  .close_value = optional_close_value,
+  .push_state = optional_push_state,
+  .close = optional_close,
+};
+
+static void optional_state_run(void* udata, Coroutine* co, void* _arg) {
+  OptionalData* data = udata;
+  rich_SchemaArg* arg = _arg;
+  if (arg->atom != RICH_NIL) {
+    call(data->wrap, push_state, co, data->value);
+    coroutine_run(co, arg);
+  }
+}
+static co_State optional_state = {
+  .run = optional_state_run,
+};
+
 /* Vector */
 
 data(VectorSchema) {
@@ -376,9 +507,10 @@ static rich_Schema_Impl vector_impl = {
 static void vector_state_run(void* udata, Coroutine* co, void* _arg) {
   VectorData* data = udata;
   rich_SchemaArg* arg = _arg;
-  if (arg->atom == RICH_ARRAY) {
-    return;
-  } else if (arg->atom == RICH_ENDARRAY) {
+  if (data->v->size == 0) {
+    if (arg->atom != RICH_ARRAY) RAISE(MALFORMED);
+  }
+  if (arg->atom == RICH_ENDARRAY) {
     coroutine_pop(co);
   } else {
     // Delegate to sub schema
@@ -483,9 +615,10 @@ static rich_Schema_Impl hashtable_impl = {
 static void hashtable_state_run(void* udata, Coroutine* co, void* _arg) {
   HashtableData* data = udata;
   rich_SchemaArg* arg = _arg;
-  if (arg->atom == RICH_MAP) {
-    return;
-  } else if (arg->atom == RICH_ENDMAP) {
+  if (data->ht->size == 0) {
+    if (arg->atom != RICH_MAP) RAISE(MALFORMED);
+  }
+  if (arg->atom == RICH_ENDMAP) {
     coroutine_pop(co);
   } else if (arg->atom == RICH_KEY) {
     bytes_copy(data->key, arg->data);
@@ -498,6 +631,11 @@ static void hashtable_state_run(void* udata, Coroutine* co, void* _arg) {
     RAISE(MALFORMED);
   }
 }
+static void hashtable_state_close(void* udata) {
+  HashtableData* data = udata;
+  bytes_close(data->key);
+}
 static co_State hashtable_state = {
   .run = hashtable_state_run,
+  .close = hashtable_state_close,
 };
