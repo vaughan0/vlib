@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <errno.h>
 
 #include <vlib/std.h>
@@ -57,6 +58,7 @@ enum {
   VERR_STATE        = VERR_MAKE(VERR_PGENERAL, 7),  // illegal state
   VERR_TIMEOUT      = VERR_MAKE(VERR_PGENERAL, 8),  // timeout
   VERR_UNAVAILABLE  = VERR_MAKE(VERR_PGENERAL, 9),  // resource unavailable
+  VERR_REMOTE       = VERR_MAKE(VERR_PGENERAL, 10), // remote error
 };
 
 // IO error codes
@@ -71,7 +73,14 @@ error_t verr_system(int eno);
 /* Exception handling */
 
 void    verr_try(void (*action)(), void (*handle)(error_t error), void (*cleanup)());
+
+void    verr_raise_msg(error_t error, const char* msg);
+void    verr_raisef(error_t error, const char* fmt, ...);
 void    verr_raise(error_t error);
+
+const char* verr_current_msg();
+const char* verr_current_str();
+
 // Reraise an exception from a CATCH block
 void    verr_reraise();
 

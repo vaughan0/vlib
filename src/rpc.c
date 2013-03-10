@@ -6,6 +6,7 @@
 
 #include <vlib/rpc.h>
 #include <vlib/io.h>
+#include <vlib/util.h>
 #include <vlib/logging.h>
 
 /* RPC <=> BinaryRPC mapping */
@@ -216,7 +217,7 @@ void rpc_add(RPC* _self, const char* method, RPCMethod func, rich_Schema* arg_sc
 static void service_call(void* _self, const char* method, rich_Source* arg, rich_Sink* result) {
   RPC_Service* self = _self;
   ServiceMethod* m = hashtable_get(self->methods, &method);
-  if (!m) RAISE(ARGUMENT);
+  if (!m) verr_raisef(VERR_ARGUMENT, "unknown method '%s'", method);
   call(arg, read_value, m->arg_sink);
   call(m->result_schema, reset_value, m->result_data);
   m->func(self->udata, m->arg_data, m->result_data);
@@ -271,11 +272,21 @@ static void zmqrpc_call(void* _self, Bytes method, Bytes args, Output* result) {
   r = zmq_send(self->socket, args.ptr, args.size, 0);
   if (r == -1) verr_raise_system();
 
-  // Wait for result data
+  // Wait for status code
   zmq_msg_t msg[1];
   zmq_msg_init(msg);
   r = zmq_msg_recv(msg, self->socket, 0);
   if (r == -1) verr_raise_system();
+  if (zmq_msg_size(msg) != 1) verr_raisef(VERR_MALFORMED, "malformed RPC response");
+  if (*(bool*)zmq_msg_data(msg) != true) {
+    // Raise remote error
+    char errstr[512];
+    strncpy(errstr, zmq_msg_data(msg), MIN(sizeof(errstr), zmq_msg_size(msg)));
+    zmq_msg_close(msg);
+    verr_raisef(VERR_REMOTE, "%s", errstr);
+  }
+
+  // Return result data
   io_write(result, zmq_msg_data(msg), zmq_msg_size(msg));
   zmq_msg_close(msg);
 }
@@ -309,6 +320,7 @@ void rpc_zmq_serve(void* socket, BinaryRPC* rpc) {
   int r;
   Output* buf = string_output_new(512);
   Logger* log = get_logger("vlib.rpc.zmq");
+  log_debug(log, "entering rpc_zmq_serve()...");
   TRY {
     for (;; discard_parts(socket)) {
 
@@ -346,17 +358,24 @@ void rpc_zmq_serve(void* socket, BinaryRPC* rpc) {
         .ptr = zmq_msg_data(args),
         .size = zmq_msg_size(args),
       };
+      bool ok = true;
       TRY {
         string_output_reset(buf);
         call(rpc, call, method_bytes, arg_bytes, buf);
       } CATCH(err) {
-        log_errorf(log, "RPC method error: %s", verr_msg(err));
-        // TODO: send error message to client
+        log_warnf(log, "RPC method error: %s", verr_current_str());
+        ok = false;
+        string_output_reset(buf);
+        io_writec(buf, verr_current_str());
       } ETRY
       zmq_msg_close(method);
       zmq_msg_close(args);
 
-      // Return response
+      // Send status message
+      r = zmq_send(socket, &ok, 1, ZMQ_SNDMORE);
+      if (r == -1) verr_raise_system();
+
+      // Send result data
       size_t resp_size;
       const char* resp_data = string_output_data(buf, &resp_size);
       r = zmq_send(socket, resp_data, resp_size, 0);

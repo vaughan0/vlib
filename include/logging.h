@@ -137,8 +137,8 @@ void    log_vmsgf_extra(Logger* logger, LogLevel level, const char* file, int li
 // Define log_*debug* functions to do nothing if DEBUG is not defined.
 #ifdef DEBUG
 
-#define log_debug(logger, msg) log_msg_extra(logger, LOG_DEBUG)
-#define log_trace(logger, msg) log_msg_extra(logger, LOG_TRACE)
+#define log_debug(logger, msg) log_msg_extra(logger, LOG_DEBUG, msg, __FILE__, __LINE__)
+#define log_trace(logger, msg) log_msg_extra(logger, LOG_TRACE, msg, __FILE__, __LINE__)
 
 #define log_debugf(logger, fmt, ...) log_msgf_extra(logger, LOG_DEBUG, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
 #define log_tracef(logger, fmt, ...) log_msgf_extra(logger, LOG_TRACE, __FILE__, __LINE__, fmt, ##__VA_ARGS__)

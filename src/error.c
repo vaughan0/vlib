@@ -17,6 +17,7 @@ static ErrorProvider general_provider, io_provider;
 
 static __thread Vector try_stack[1];
 static __thread error_t current_error;
+static __thread const char* current_msg;
 
 data(TryFrame) {
   jmp_buf env;
@@ -51,20 +52,44 @@ void verr_register(int provider, ErrorProvider* impl) {
 }
 
 const char* verr_msg(error_t err) {
-  static char buf[200];
+  static __thread char buf[200];
+  int n = 0;
+
+  void write(const char* fmt, ...) {
+    if (n < sizeof(buf)) {
+      va_list va;
+      va_start(va, fmt);
+      n += vsnprintf(buf+n, sizeof(buf)-n, fmt, va);
+      va_end(va);
+    }
+  }
+
+  write("[%x:", err);
 
   int provider = VERR_PROVIDER(err);
   void* ptr = hashtable_get(providers, &provider);
-  if (!ptr) goto NoDetails;
+  if (!ptr) {
+    write("unknown]");
+  } else {
+    ErrorProvider* ep = *(ErrorProvider**)ptr;
+    write("%s]", ep->name);
+    const char* msg = ep->get_msg(err);
+    if (msg) {
+      write(" %s", msg);
+    }
+  }
 
-  ErrorProvider* ep = *(ErrorProvider**)ptr;
-  const char* msg = ep->get_msg(err);
-  if (!msg) goto NoDetails;
-  snprintf(buf, sizeof(buf), "[%x:%s] %s", err, ep->name, msg);
   return buf;
-
-NoDetails:
-  snprintf(buf, sizeof(buf), "[%x:unknown]", err);
+}
+const char* verr_current_msg() {
+  return current_msg;
+}
+const char* verr_current_str() {
+  static __thread char buf[512];
+  int n = snprintf(buf, sizeof(buf), "%s", verr_msg(current_error));
+  if (n < sizeof(buf) && current_msg) {
+    snprintf(buf+n, sizeof(buf)-n, " - %s", current_msg);
+  }
   return buf;
 }
 
@@ -81,6 +106,7 @@ static const char* general_get_msg(error_t err) {
   case VERR_STATE:        return "illegal state";
   case VERR_TIMEOUT:      return "timeout";
   case VERR_UNAVAILABLE:  return "resource unavailable";
+  case VERR_REMOTE:       return "remote error";
   };
   return NULL;
 }
@@ -133,6 +159,7 @@ error_t verr_system(int eno) {
 #ifdef DEBUG
 static __thread void* backtrace_buffer[32];
 static __thread int backtrace_size;
+static __thread char error_msg[512];
 #endif
 
 void verr_try(void (*action)(), void (*handle)(error_t error), void (*cleanup)()) {
@@ -157,12 +184,23 @@ void verr_try(void (*action)(), void (*handle)(error_t error), void (*cleanup)()
   if (error) verr_raise(error);
 }
 
+void verr_raisef(error_t error, const char* fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  vsnprintf(error_msg, sizeof(error_msg), fmt, ap);
+  va_end(ap);
+  verr_raise_msg(error, error_msg);
+}
 void verr_raise(error_t error) {
+  verr_raise_msg(error, NULL);
+}
+void verr_raise_msg(error_t error, const char* msg) {
   assert(error != 0);
 #ifdef DEBUG
   backtrace_size = backtrace(backtrace_buffer, sizeof(backtrace_buffer) / sizeof(void*));
 #endif
   current_error = error;
+  current_msg = msg;
   verr_reraise();
 }
 void verr_reraise() {
@@ -170,7 +208,12 @@ void verr_reraise() {
     TryFrame* frame = vector_back(try_stack);
     longjmp(frame->env, current_error);
   }
-  fprintf(stderr, "unhandled exception: %s\n", verr_msg(current_error));
+  fprintf(stderr, "unhandled exception: %s", verr_msg(current_error));
+  if (current_msg) {
+    fprintf(stderr, " - %s\n", current_msg);
+  } else {
+    fprintf(stderr, "\n");
+  }
 #ifdef DEBUG
   verr_print_stacktrace();
 #endif
