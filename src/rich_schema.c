@@ -24,6 +24,10 @@ rich_Source* rich_bind_source(rich_Schema* schema, void* from) {
   self->from = from;
   return &self->base;
 }
+void rich_rebind_source(rich_Source* _self, void* from) {
+  BoundSource* self = (BoundSource*)_self;
+  self->from = from;
+}
 
 static void bound_read_value(void* _self, rich_Sink* to) {
   BoundSource* self = _self;
@@ -57,6 +61,10 @@ rich_Sink* rich_bind_sink(rich_Schema* schema, void* to) {
   coroutine_init(self->co);
   *(BoundSink**)coroutine_push(self->co, &sink_root_state, sizeof(BoundSink*)) = self;
   return &self->base;
+}
+void rich_rebind_sink(rich_Sink* _self, void* to) {
+  BoundSink* self = (BoundSink*)_self;
+  self->to = to;
 }
 static void bound_sink_sink(void* _self, rich_Atom atom, void* atom_data) {
   BoundSink* self = _self;
@@ -258,7 +266,12 @@ static size_t bytes_data_size(void* _self) {
   return sizeof(Bytes);
 }
 static void bytes_dump_value(void* _self, void* _value, rich_Sink* to) {
-  call(to, sink, RICH_STRING, _value);
+  Bytes* value = _value;
+  if (value->ptr) {
+    call(to, sink, RICH_STRING, _value);
+  } else {
+    call(to, sink, RICH_NIL, NULL);
+  }
 }
 static void bytes_reset_value(void* _self, void* _value) {
   Bytes* value = _value;
@@ -307,6 +320,61 @@ static rich_Schema_Impl bytes_impl = {
 rich_Schema rich_schema_bytes[1] = {{
   ._impl = &bytes_impl,
 }};
+
+/* Discard */
+
+data(DiscardData) {
+  unsigned  level;
+};
+static co_State discard_state;
+
+static size_t discard_data_size(void* _self) {
+  return 0;
+}
+static void discard_dump_value(void* _self, void* value, rich_Sink* to) {
+  call(to, sink, RICH_NIL, NULL);
+}
+static void discard_reset_value(void* _self, void* value) {}
+static void discard_close_value(void* _self, void* value) {}
+static void discard_push_state(void* _self, Coroutine* co, void* value) {
+  DiscardData* data = coroutine_push(co, &discard_state, sizeof(DiscardData));
+  data->level = 0;
+}
+static rich_Schema_Impl discard_impl = {
+  .data_size = discard_data_size,
+  .dump_value = discard_dump_value,
+  .reset_value = discard_reset_value,
+  .close_value = discard_close_value,
+  .push_state = discard_push_state,
+  .close = null_close,
+};
+rich_Schema rich_schema_discard[1] = {{
+  ._impl = &discard_impl,
+}};
+
+static void discard_state_run(void* udata, Coroutine* co, void* _arg) {
+  DiscardData* data = udata;
+  rich_SchemaArg* arg = _arg;
+  switch (arg->atom) {
+    case RICH_ARRAY:
+    case RICH_MAP:
+      data->level++;
+      break;
+    case RICH_ENDARRAY:
+    case RICH_ENDMAP:
+      data->level--;
+      break;
+    default:
+      /* leave level unchanged */
+      break;
+  }
+  if (data->level == 0) {
+    coroutine_pop(co);
+  }
+}
+static co_State discard_state = {
+  .run = discard_state_run,
+};
 
 /* Pointer */
 
@@ -802,6 +870,7 @@ static void struct_state_run(void* udata, Coroutine* co, void* _arg) {
   if (arg->atom != RICH_KEY) RAISE(MALFORMED);
   Field* field = find_field(data->fields, arg->data);
   if (!field) RAISE(MALFORMED);
+
   call(field->schema, push_state, co, data->data + field->offset);
   bitset_set(data->read, field->index, true);
 }

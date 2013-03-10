@@ -6,6 +6,7 @@
 
 #include <vlib/rpc.h>
 #include <vlib/io.h>
+#include <vlib/logging.h>
 
 /* RPC <=> BinaryRPC mapping */
 
@@ -121,6 +122,126 @@ static BinaryRPC_Impl server_impl = {
   .close = server_close,
 };
 
+/* RPC_Client */
+
+data(ClientMethod) {
+  const char*   name;
+  rich_Schema*  arg_schema;
+  rich_Source*  arg_source;
+  rich_Schema*  result_schema;
+  rich_Sink*    result_sink;
+};
+
+void rpc_init(RPC_Client* self, RPC* backend) {
+  self->backend = backend;
+  vector_init(self->methods, sizeof(ClientMethod), 4);
+}
+void rpc_close(RPC_Client* self) {
+  for (unsigned i = 0; i < self->methods->size; i++) {
+    ClientMethod* method = vector_get(self->methods, i);
+    call(method->arg_source, close);
+    call(method->result_sink, close);
+  }
+  vector_close(self->methods);
+  call(self->backend, close);
+}
+int rpc_register(RPC_Client* self, const char* method, rich_Schema* arg_schema, rich_Schema* result_schema) {
+  ClientMethod* m = vector_push(self->methods);
+  m->name = method;
+  m->arg_schema = arg_schema;
+  m->arg_source = rich_bind_source(arg_schema, NULL);
+  m->result_schema = result_schema;
+  m->result_sink = rich_bind_sink(result_schema, NULL);
+  return self->methods->size-1;
+}
+
+void rpc_call(RPC_Client* self, int method, void* arg, void* result) {
+  ClientMethod* m = vector_get(self->methods, method);
+  rich_rebind_source(m->arg_source, arg);
+  rich_rebind_sink(m->result_sink, result);
+  call(self->backend, call, m->name, m->arg_source, m->result_sink);
+}
+
+/* RPC_Service */
+
+data(ServiceMethod) {
+  RPCMethod     func;
+  rich_Schema*  arg_schema;
+  rich_Sink*    arg_sink;
+  void*         arg_data;
+  rich_Schema*  result_schema;
+  rich_Source*  result_source;
+  void*         result_data;
+};
+
+data(RPC_Service) {
+  RPC       base;
+  void      (*cleanup)(void* udata);
+  void*     udata;
+  Hashtable methods[1];
+};
+static RPC_Impl service_impl;
+
+RPC* rpc_service_new(void* udata) {
+  RPC_Service* self = malloc(sizeof(RPC_Service));
+  self->base._impl = &service_impl;
+  self->cleanup = NULL;
+  self->udata = udata;
+  hashtable_init(self->methods, hasher_fnv64str, equaler_str, sizeof(const char*), sizeof(ServiceMethod));
+  return &self->base;
+}
+void rpc_service_cleanup(RPC* _self, void (*cleanup_handler)(void* udata)) {
+  RPC_Service* self = (RPC_Service*)_self;
+  self->cleanup = cleanup_handler;
+}
+void rpc_add(RPC* _self, const char* method, RPCMethod func, rich_Schema* arg_schema, rich_Schema* result_schema) {
+  RPC_Service* self = (RPC_Service*)_self;
+  assert(hashtable_get(self->methods, &method) == NULL);
+  ServiceMethod* m = hashtable_insert(self->methods, &method);
+  m->func = func;
+
+  m->arg_schema = arg_schema;
+  size_t argsz = call(arg_schema, data_size);
+  m->arg_data = malloc(argsz);
+  memset(m->arg_data, 0, argsz);
+  m->arg_sink = rich_bind_sink(arg_schema, m->arg_data);
+
+  m->result_schema = result_schema;
+  size_t resultsz = call(result_schema, data_size);
+  m->result_data = malloc(resultsz);
+  memset(m->result_data, 0, resultsz);
+  m->result_source = rich_bind_source(result_schema, m->result_data);
+}
+
+static void service_call(void* _self, const char* method, rich_Source* arg, rich_Sink* result) {
+  RPC_Service* self = _self;
+  ServiceMethod* m = hashtable_get(self->methods, &method);
+  if (!m) RAISE(ARGUMENT);
+  call(arg, read_value, m->arg_sink);
+  call(m->result_schema, reset_value, m->result_data);
+  m->func(self->udata, m->arg_data, m->result_data);
+  call(m->result_source, read_value, result);
+}
+static void service_close(void* _self) {
+  RPC_Service* self = _self;
+  int free_method(void* _key, void* _data) {
+    ServiceMethod* method = _data;
+    call(method->arg_sink, close);
+    free(method->arg_data);
+    call(method->result_source, close);
+    call(method->result_schema, close_value, method->result_data);
+    free(method->result_data);
+    return HT_CONTINUE;
+  }
+  hashtable_iter(self->methods, free_method);
+  if (self->cleanup) self->cleanup(self->udata);
+  free(self);
+}
+static RPC_Impl service_impl = {
+  .call = service_call,
+  .close = service_close,
+};
+
 /* RPC over ZeroMQ */
 
 #ifdef VLIB_ENABLE_ZMQ
@@ -187,6 +308,7 @@ static void discard_parts(void* socket) {
 void rpc_zmq_serve(void* socket, BinaryRPC* rpc) {
   int r;
   Output* buf = string_output_new(512);
+  Logger* log = get_logger("vlib.rpc.zmq");
   TRY {
     for (;; discard_parts(socket)) {
 
@@ -227,10 +349,12 @@ void rpc_zmq_serve(void* socket, BinaryRPC* rpc) {
       TRY {
         string_output_reset(buf);
         call(rpc, call, method_bytes, arg_bytes, buf);
-      } FINALLY {
-        zmq_msg_close(method);
-        zmq_msg_close(args);
+      } CATCH(err) {
+        log_errorf(log, "RPC method error: %s", verr_msg(err));
+        // TODO: send error message to client
       } ETRY
+      zmq_msg_close(method);
+      zmq_msg_close(args);
 
       // Return response
       size_t resp_size;

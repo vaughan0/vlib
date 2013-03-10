@@ -22,12 +22,16 @@ data(rich_SchemaArg) {
 };
 
 rich_Source*  rich_bind_source(rich_Schema* schema, void* from);
+void          rich_rebind_source(rich_Source* source, void* new_from);
 rich_Sink*    rich_bind_sink(rich_Schema* schema, void* to);
+void          rich_rebind_sink(rich_Sink* sink, void* new_to);
 
 extern rich_Schema  rich_schema_bool[1];
 extern rich_Schema  rich_schema_int64[1];
 extern rich_Schema  rich_schema_double[1];
 extern rich_Schema  rich_schema_bytes[1];
+
+extern rich_Schema  rich_schema_discard[1];
 
 rich_Schema*        rich_schema_pointer(rich_Schema* to);
 rich_Schema*        rich_schema_optional(rich_Schema* wrap);
