@@ -37,7 +37,10 @@ rich_Schema*        rich_schema_vector(rich_Schema* of);
 // Uses Bytes objects as keys.
 rich_Schema*        rich_schema_hashtable(rich_Schema* of);
 
-rich_Schema*        rich_schema_struct();
-void                rich_add_field(rich_Schema* self, const char* name, rich_Schema* field_type);
+rich_Schema*        rich_schema_struct(size_t struct_size);
+void                rich_add_field(rich_Schema* self, Bytes name, size_t offset, rich_Schema* field_type);
+void                rich_add_cfield(rich_Schema* self, const char* name, size_t offset, rich_Schema* field_type);
+
+#define RICH_ADD_FIELD(schema, type, field, subschema) rich_add_cfield((schema), #field, offsetof(type, field), subschema)
 
 #endif /* RICH_BIND_H_9AA13EB5361B53 */

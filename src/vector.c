@@ -17,12 +17,22 @@ void vector_close(Vector* v) {
   if (v->_data) free(v->_data);
 }
 
+void vector_reserve(Vector* v, size_t capacity) {
+  if (v->_cap < capacity) {
+    v->_cap = capacity;
+    v->_data = realloc(v->_data, v->_cap * v->elemsz);
+  }
+}
+inline void vector_grow(Vector* v, size_t require) {
+  if (v->_cap < require) {
+    v->_cap = require * 2;
+    v->_data = realloc(v->_data, v->_cap * v->elemsz);
+  }
+}
+
 void* vector_push(Vector* v) {
   // Check capacity
-  if (v->_cap == v->size) {
-    v->_cap *= 2;
-    v->_data = realloc(v->_data, (v->_cap * v->elemsz));
-  }
+  vector_grow(v, v->size+1);
   return v->_data + (v->size++ * v->elemsz);
 }
 

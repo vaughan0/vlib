@@ -5,6 +5,7 @@
 
 #include <vlib/rich_schema.h>
 #include <vlib/hashtable.h>
+#include <vlib/bitset.h>
 #include <vlib/util.h>
 
 data(BoundSource) {
@@ -638,4 +639,149 @@ static void hashtable_state_close(void* udata) {
 static co_State hashtable_state = {
   .run = hashtable_state_run,
   .close = hashtable_state_close,
+};
+
+/* Structs */
+
+data(StructSchema) {
+  rich_Schema   base;
+  size_t        data_size;
+  Vector        fields[1];
+};
+static rich_Schema_Impl struct_impl;
+
+data(Field) {
+  Bytes         name[1];
+  size_t        offset;
+  rich_Schema*  schema;
+};
+
+data(StructData) {
+  Vector*       fields;
+  char*         data;
+  bool          first_field;
+  Bitset        read[];
+};
+static co_State struct_state;
+
+static Field* find_field(Vector* fields, Bytes* name) {
+  for (unsigned i = 0; i < fields->size; i++) {
+    Field* f = vector_get(fields, i);
+    if (bytes_compare(f->name, name) == 0) return f;
+  }
+  return NULL;
+}
+
+rich_Schema* rich_schema_struct(size_t data_size) {
+  StructSchema* self = malloc(sizeof(StructSchema));
+  self->base._impl = &struct_impl;
+  self->data_size = data_size;
+  vector_init(self->fields, sizeof(Field), 4);
+  return &self->base;
+}
+void rich_add_field(rich_Schema* _self, Bytes name, size_t offset, rich_Schema* schema) {
+  StructSchema* self = (StructSchema*)_self;
+  assert(find_field(self->fields, &name) == NULL);
+  Field* field = vector_push(self->fields);
+  *field->name = name;
+  field->offset = offset;
+  field->schema = schema;
+}
+void rich_add_cfield(rich_Schema* self, const char* name, size_t offset, rich_Schema* schema) {
+  Bytes bytes_name = {
+    .ptr = (void*)name,
+    .size = strlen(name),
+  };
+  rich_add_field(self, bytes_name, offset, schema);
+}
+static size_t struct_data_size(void* _self) {
+  StructSchema* self = _self;
+  return self->data_size;
+}
+static void struct_dump_value(void* _self, void* value, rich_Sink* to) {
+  StructSchema* self = _self;
+  char* data = value;
+  call(to, sink, RICH_MAP, NULL);
+  for (unsigned i = 0; i < self->fields->size; i++) {
+    Field* field = vector_get(self->fields, i);
+    call(to, sink, RICH_KEY, field->name);
+    call(field->schema, dump_value, data + field->offset, to);
+  }
+  call(to, sink, RICH_ENDMAP, NULL);
+}
+static void struct_reset_value(void* _self, void* value) {
+  StructSchema* self = _self;
+  char* data = value;
+  for (unsigned i = 0; i < self->fields->size; i++) {
+    Field* field = vector_get(self->fields, i);
+    call(field->schema, reset_value, data + field->offset);
+  }
+}
+static void struct_close_value(void* _self, void* value) {
+  StructSchema* self = _self;
+  char* data = value;
+  for (unsigned i = 0; i < self->fields->size; i++) {
+    Field* field = vector_get(self->fields, i);
+    call(field->schema, close_value, data + field->offset);
+  }
+}
+static void struct_push_state(void* _self, Coroutine* co, void* value) {
+  StructSchema* self = _self;
+  size_t sz = sizeof(StructData) + bitset_size(self->fields->size);
+  StructData* data = coroutine_push(co, &struct_state, sz);
+  data->fields = self->fields;
+  data->data = value;
+  data->first_field = true;
+  bitset_init(data->read, self->fields->size);
+}
+static void struct_close(void* _self) {
+  StructSchema* self = _self;
+  for (unsigned i = 0; i < self->fields->size; i++) {
+    Field* field = vector_get(self->fields, i);
+    call(field->schema, close);
+  }
+  vector_close(self->fields);
+  free(self);
+}
+static rich_Schema_Impl struct_impl = {
+  .data_size = struct_data_size,
+  .dump_value = struct_dump_value,
+  .reset_value = struct_reset_value,
+  .close_value = struct_close_value,
+  .push_state = struct_push_state,
+  .close = struct_close,
+};
+
+static void struct_state_run(void* udata, Coroutine* co, void* _arg) {
+  StructData* data = udata;
+  rich_SchemaArg* arg = _arg;
+
+  if (data->first_field) {
+    data->first_field = false;
+    if (arg->atom != RICH_MAP) RAISE(MALFORMED);
+    return;
+  }
+
+  if (arg->atom == RICH_ENDMAP) {
+    // Send NILs to all un-read fields
+    for (unsigned i = 0; i < data->fields->size; i++) {
+      if (bitset_get(data->read, i)) continue;
+      Field* field = vector_get(data->fields, i);
+      call(field->schema, push_state, co, data->data + field->offset);
+      rich_SchemaArg fakenil = {
+        .atom = RICH_NIL,
+      };
+      coroutine_run(co, &fakenil);
+    }
+    coroutine_pop(co);
+    return;
+  }
+
+  if (arg->atom != RICH_KEY) RAISE(MALFORMED);
+  Field* field = find_field(data->fields, arg->data);
+  if (!field) RAISE(MALFORMED);
+  call(field->schema, push_state, co, data->data + field->offset);
+}
+static co_State struct_state = {
+  .run = struct_state_run,
 };
