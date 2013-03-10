@@ -548,19 +548,23 @@ static void vector_reset_value(void* _self, void* _value) {
   Vector* v = _value;
   if (v->_data) {
     for (unsigned i = 0; i < v->size; i++) {
-      call(self->of, close_value, vector_get(v, i));
+      call(self->of, reset_value, vector_get(v, i));
     }
     vector_clear(v);
   } else {
     vector_init(v, call(self->of, data_size), 4);
+    memset(v->_data, 0, v->_cap * v->elemsz);
+    for (unsigned i = 0; i < v->_cap; i++) {
+      call(self->of, reset_value, v->_data + i*v->elemsz);
+    }
   }
 }
 static void vector_close_value(void* _self, void* _value) {
   VectorSchema* self = _self;
   Vector* v = _value;
   if (v->_data) {
-    for (unsigned i = 0; i < v->size; i++) {
-      call(self->of, close_value, vector_get(v, i));
+    for (unsigned i = 0; i < v->_cap; i++) {
+      call(self->of, close_value, v->_data + i*v->elemsz);
     }
     vector_close(v);
   }
@@ -586,6 +590,20 @@ static rich_Schema_Impl vector_impl = {
   .close = vector_schema_close,
 };
 
+static void* pushval(VectorData* data) {
+  Vector* v = data->v;
+  size_t cap = v->_cap;
+  void* value = vector_push(v);
+  if (cap < v->_cap) {
+    // Initialize newly-allocated elements
+    memset(v->_data + cap*v->elemsz, 0, (v->_cap - cap) * v->elemsz);
+    for (unsigned i = cap; i < v->_cap; i++) {
+      void* newval = v->_data + i*v->elemsz;
+      call(data->of, reset_value, newval);
+    }
+  }
+  return value;
+}
 static void vector_state_run(void* udata, Coroutine* co, void* _arg) {
   VectorData* data = udata;
   rich_SchemaArg* arg = _arg;
@@ -598,9 +616,7 @@ static void vector_state_run(void* udata, Coroutine* co, void* _arg) {
     coroutine_pop(co);
   } else {
     // Delegate to sub schema
-    void* value = vector_push(data->v);
-    memset(value, 0, data->v->elemsz);
-    call(data->of, reset_value, value);
+    void* value = pushval(data);
     call(data->of, push_state, co, value);
     coroutine_run(co, arg);
   }
