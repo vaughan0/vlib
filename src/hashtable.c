@@ -160,8 +160,14 @@ uint64_t hasher_fnv64(const void* _data, size_t sz) {
 }
 uint64_t hasher_fnv64str(const void* ptr, size_t sz) {
   const char* str = *(const char**)ptr;
+  assert(str);
   size_t len = strlen(str);
   return hasher_fnv64(str, len);
+}
+uint64_t hasher_bytes(const void* ptr, size_t sz) {
+  const Bytes* b = ptr;
+  assert(b->ptr);
+  return hasher_fnv64(b->ptr, b->size);
 }
 
 int equaler_str(const void* a, const void* b, size_t sz) {
@@ -173,4 +179,11 @@ int equaler_ptr(const void* _a, const void* _b, size_t sz) {
   const void* a = *(const void**)_a;
   const void* b = *(const void**)_b;
   return (a == b) ? 0 : -1;
+}
+int equaler_bytes(const void* _a, const void* _b, size_t sz) {
+  const Bytes* a = _a;
+  const Bytes* b = _b;
+  assert(a->ptr && b->ptr);
+  if (a->size != b->size) return -1;
+  return memcmp(a->ptr, b->ptr, a->size);
 }

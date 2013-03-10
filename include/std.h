@@ -24,8 +24,18 @@
 
 data(Bytes) {
   size_t  size;
+  size_t  cap;
   void*   ptr;
 };
+
+void  bytes_init(Bytes* self, size_t cap);
+void  bytes_close(Bytes* self);
+void  bytes_grow(Bytes* self, size_t require);
+
+void  bytes_copy(Bytes* self, const Bytes* from);
+void  bytes_ccopy(Bytes* self, const char* src);
+
+int   bytes_compare(const Bytes* a, const Bytes* b);
 
 #endif /* STD_H_95ECC92A271C4F */
 

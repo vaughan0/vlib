@@ -13,8 +13,14 @@ data(Vector) {
   size_t    _cap;   // maximum number of elements that data can hold
 };
 
-void vector_init(Vector* v, size_t elemsz, size_t capacity);
-void vector_close(Vector* v);
+void  vector_init(Vector* v, size_t elemsz, size_t capacity);
+void  vector_close(Vector* v);
+
+// Sets the Vector's capacity to `capacity` if it is lower.
+void  vector_reserve(Vector* v, size_t capacity);
+// Grows the Vector's capacity to meet the specified requirements, and grow fast
+// enough to provide amortized constant time (ie exponentially).
+void  vector_grow(Vector* v, size_t require);
 
 static inline void vector_clear(Vector* v) {
   v->size = 0;

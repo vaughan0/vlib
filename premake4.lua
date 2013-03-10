@@ -3,6 +3,7 @@ solution 'vlib'
 
   features = {
     gdbm = {links = 'gdbm'},
+    zmq = {links = 'zmq'},
   }
   dofile 'features.lua'
 
