@@ -2,7 +2,7 @@
 #define RPC_H_4EFFD6B83F9CFC
 
 #include <vlib/rich.h>
-#include <vlib/rich_bind.h>
+#include <vlib/rich_schema.h>
 #include <vlib/hashtable.h>
 
 interface(RPC) {
