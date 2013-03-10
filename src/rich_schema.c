@@ -8,6 +8,8 @@
 #include <vlib/bitset.h>
 #include <vlib/util.h>
 
+static void null_close_value(void* self, void* value) {}
+
 data(BoundSource) {
   rich_Source   base;
   rich_Schema*  schema;
@@ -67,6 +69,8 @@ static void bound_sink_sink(void* _self, rich_Atom atom, void* atom_data) {
 static void bound_sink_close(void* _self) {
   BoundSink* self = _self;
   coroutine_close(self->co);
+  call(self->schema, close_value, self->to);
+  call(self->schema, close);
   free(self);
 }
 static rich_Sink_Impl bound_sink_impl = {
@@ -76,6 +80,7 @@ static rich_Sink_Impl bound_sink_impl = {
 
 static void root_state_run(void* udata, Coroutine* co, void* arg) {
   BoundSink* self = *(BoundSink**)udata;
+  call(self->schema, reset_value, self->to);
   call(self->schema, push_state, co, self->to);
   coroutine_run(self->co, arg);
 }
@@ -162,6 +167,7 @@ static rich_Schema_Impl bool_impl = {
   .data_size = bool_data_size,
   .dump_value = bool_dump_value,
   .reset_value = bool_reset_value,
+  .close_value = null_close_value,
   .push_state = bool_push_state,
   .close = null_close,
 };
@@ -199,6 +205,7 @@ static rich_Schema_Impl int64_impl = {
   .data_size = int64_data_size,
   .dump_value = int64_dump_value,
   .reset_value = int64_reset_value,
+  .close_value = null_close_value,
   .push_state = int64_push_state,
   .close = null_close,
 };
@@ -236,6 +243,7 @@ static rich_Schema_Impl double_impl = {
   .data_size = double_data_size,
   .dump_value = double_dump_value,
   .reset_value = double_reset_value,
+  .close_value = null_close_value,
   .push_state = double_push_state,
   .close = null_close,
 };
@@ -269,7 +277,9 @@ static void bytes_push_state(void* _self, Coroutine* co, void* value) {
 
 static void bytes_sink_run(void* udata, Coroutine* co, void* _arg) {
   rich_SchemaArg* arg = _arg;
-  if (arg->atom != RICH_STRING) RAISE(MALFORMED);
+  if (arg->atom != RICH_STRING) {
+    RAISE(MALFORMED);
+  }
   Bytes* value = *(void**)udata;
   Bytes* src = arg->data;
   if (!value->ptr) {
@@ -281,6 +291,7 @@ static void bytes_sink_run(void* udata, Coroutine* co, void* _arg) {
   }
   value->size = src->size;
   memcpy(value->ptr, src->ptr, value->size);
+  coroutine_pop(co);
 }
 static co_State bytes_state = {
   .run = bytes_sink_run,
@@ -439,6 +450,7 @@ static rich_Schema_Impl vector_impl;
 data(VectorData) {
   rich_Schema*  of;
   Vector*       v;
+  bool          first_atom;
 };
 static co_State vector_state;
 
@@ -490,6 +502,7 @@ static void vector_push_state(void* _self, Coroutine* co, void* _value) {
   VectorData* arg = coroutine_push(co, &vector_state, sizeof(VectorData));
   arg->of = self->of;
   arg->v = _value;
+  arg->first_atom = true;
 }
 static void vector_schema_close(void* _self) {
   VectorSchema* self = _self;
@@ -508,14 +521,18 @@ static rich_Schema_Impl vector_impl = {
 static void vector_state_run(void* udata, Coroutine* co, void* _arg) {
   VectorData* data = udata;
   rich_SchemaArg* arg = _arg;
-  if (data->v->size == 0) {
+  if (data->first_atom) {
+    data->first_atom = false;
     if (arg->atom != RICH_ARRAY) RAISE(MALFORMED);
+    return;
   }
   if (arg->atom == RICH_ENDARRAY) {
     coroutine_pop(co);
   } else {
     // Delegate to sub schema
     void* value = vector_push(data->v);
+    memset(value, 0, data->v->elemsz);
+    call(data->of, reset_value, value);
     call(data->of, push_state, co, value);
     coroutine_run(co, arg);
   }
@@ -618,6 +635,7 @@ static void hashtable_state_run(void* udata, Coroutine* co, void* _arg) {
   rich_SchemaArg* arg = _arg;
   if (data->ht->size == 0) {
     if (arg->atom != RICH_MAP) RAISE(MALFORMED);
+    return;
   }
   if (arg->atom == RICH_ENDMAP) {
     coroutine_pop(co);
@@ -627,6 +645,8 @@ static void hashtable_state_run(void* udata, Coroutine* co, void* _arg) {
     Bytes copy = {.ptr = NULL};
     bytes_copy(&copy, data->key);
     void* value = hashtable_insert(data->ht, &copy);
+    memset(value, 0, data->ht->elemsz);
+    call(data->of, reset_value, value);
     call(data->of, push_state, co, value);
   } else {
     RAISE(MALFORMED);
@@ -651,6 +671,7 @@ data(StructSchema) {
 static rich_Schema_Impl struct_impl;
 
 data(Field) {
+  unsigned      index;
   Bytes         name[1];
   size_t        offset;
   rich_Schema*  schema;
@@ -683,6 +704,7 @@ void rich_add_field(rich_Schema* _self, Bytes name, size_t offset, rich_Schema* 
   StructSchema* self = (StructSchema*)_self;
   assert(find_field(self->fields, &name) == NULL);
   Field* field = vector_push(self->fields);
+  field->index = self->fields->size-1;
   *field->name = name;
   field->offset = offset;
   field->schema = schema;
@@ -781,6 +803,7 @@ static void struct_state_run(void* udata, Coroutine* co, void* _arg) {
   Field* field = find_field(data->fields, arg->data);
   if (!field) RAISE(MALFORMED);
   call(field->schema, push_state, co, data->data + field->offset);
+  bitset_set(data->read, field->index, true);
 }
 static co_State struct_state = {
   .run = struct_state_run,

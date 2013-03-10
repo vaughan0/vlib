@@ -157,6 +157,7 @@ static void read_string(JSONSource* self) {
   }
   io_put(self->buf, 0);
   self->sval.ptr = (char*)string_output_data(self->buf, &self->sval.size);
+  self->sval.size--; // Don't count the NULL-character
 }
 static void read_array(JSONSource* self, rich_Sink* to) {
   Input* in = self->in;

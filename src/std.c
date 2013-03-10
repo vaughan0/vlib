@@ -25,10 +25,18 @@ void bytes_grow(Bytes* self, size_t require) {
     self->ptr = realloc(self->ptr, self->cap);
   }
 }
+
 void bytes_copy(Bytes* self, const Bytes* from) {
   bytes_grow(self, from->size);
   self->size = from->size;
   memcpy(self->ptr, from->ptr, self->size);
+}
+void bytes_ccopy(Bytes* self, const char* str) {
+  Bytes from = {
+    .ptr = (void*)str,
+    .size = strlen(str),
+  };
+  bytes_copy(self, &from);
 }
 
 int bytes_compare(const Bytes* a, const Bytes* b) {
