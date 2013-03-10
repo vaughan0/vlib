@@ -7,6 +7,7 @@
 #include <vlib/time.h>
 #include <vlib/io.h>
 #include <vlib/vector.h>
+#include <vlib/hashtable.h>
 #include <vlib/rich.h>
 
 enum {
