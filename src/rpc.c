@@ -183,17 +183,13 @@ data(RPC_Service) {
 };
 static RPC_Impl service_impl;
 
-RPC* rpc_service_new(void* udata) {
+RPC* rpc_service_new(void* udata, void (*cleanup)(void*)) {
   RPC_Service* self = malloc(sizeof(RPC_Service));
   self->base._impl = &service_impl;
-  self->cleanup = NULL;
+  self->cleanup = cleanup;
   self->udata = udata;
   hashtable_init(self->methods, hasher_fnv64str, equaler_str, sizeof(const char*), sizeof(ServiceMethod));
   return &self->base;
-}
-void rpc_service_cleanup(RPC* _self, void (*cleanup_handler)(void* udata)) {
-  RPC_Service* self = (RPC_Service*)_self;
-  self->cleanup = cleanup_handler;
 }
 void rpc_add(RPC* _self, const char* method, RPCMethod func, rich_Schema* arg_schema, rich_Schema* result_schema) {
   RPC_Service* self = (RPC_Service*)_self;
@@ -247,21 +243,21 @@ static RPC_Impl service_impl = {
 
 #ifdef VLIB_ENABLE_ZMQ
 
-data(RPCZMQ) {
+data(RPC_ZMQClient) {
   BinaryRPC     base;
   void*         socket;
 };
 static BinaryRPC_Impl zmq_impl;
 
 BinaryRPC* rpc_zmq_new(void* req_socket) {
-  RPCZMQ* self = malloc(sizeof(RPCZMQ));
+  RPC_ZMQClient* self = malloc(sizeof(RPC_ZMQClient));
   self->base._impl = &zmq_impl;
   self->socket = req_socket;
   return &self->base;
 }
 
 static void zmqrpc_call(void* _self, Bytes method, Bytes args, Output* result) {
-  RPCZMQ* self = _self;
+  RPC_ZMQClient* self = _self;
   int r;
 
   // Send method string as a message part
@@ -291,7 +287,7 @@ static void zmqrpc_call(void* _self, Bytes method, Bytes args, Output* result) {
   zmq_msg_close(msg);
 }
 static void zmqrpc_close(void* _self) {
-  RPCZMQ* self = _self;
+  RPC_ZMQClient* self = _self;
   zmq_close(self->socket);
   free(self);
 }
@@ -299,6 +295,17 @@ static BinaryRPC_Impl zmq_impl = {
   .call = zmqrpc_call,
   .close = zmqrpc_close,
 };
+
+/* RPC_ZMQServer */
+
+void rpc_zmq_init(RPC_ZMQServer* self, void* rep_socket, BinaryRPC* backend) {
+  self->socket = rep_socket;
+  self->rpc = backend;
+  self->running = false;
+}
+void rpc_zmq_stop(RPC_ZMQServer* self) {
+  self->running = false;
+}
 
 static bool hasmore(void* socket) {
   int rcvmore;
@@ -316,20 +323,21 @@ static void discard_parts(void* socket) {
     zmq_msg_close(msg);
   }
 }
-void rpc_zmq_serve(void* socket, BinaryRPC* rpc) {
+void rpc_zmq_serve(RPC_ZMQServer* self) {
   int r;
   Output* buf = string_output_new(512);
   Logger* log = get_logger("vlib.rpc.zmq");
   log_debug(log, "entering rpc_zmq_serve()...");
   TRY {
-    for (;; discard_parts(socket)) {
+    self->running = true;
+    for (; self->running; discard_parts(self->socket)) {
 
       // Receive method string
       zmq_msg_t method[1];
       zmq_msg_init(method);
-      r = zmq_msg_recv(method, socket, 0);
+      r = zmq_msg_recv(method, self->socket, 0);
       if (r == -1) verr_raise_system();
-      if (!hasmore(socket)) {
+      if (!hasmore(self->socket)) {
         zmq_msg_close(method);
         RAISE(MALFORMED);
       }
@@ -337,9 +345,9 @@ void rpc_zmq_serve(void* socket, BinaryRPC* rpc) {
       // Receive argument data
       zmq_msg_t args[1];
       zmq_msg_init(args);
-      r = zmq_msg_recv(args, socket, 0);
+      r = zmq_msg_recv(args, self->socket, 0);
       if (r == -1) verr_raise_system();
-      if (hasmore(socket)) {
+      if (hasmore(self->socket)) {
         zmq_msg_close(method);
         zmq_msg_close(args);
         RAISE(MALFORMED);
@@ -361,7 +369,7 @@ void rpc_zmq_serve(void* socket, BinaryRPC* rpc) {
       bool ok = true;
       TRY {
         string_output_reset(buf);
-        call(rpc, call, method_bytes, arg_bytes, buf);
+        call(self->rpc, call, method_bytes, arg_bytes, buf);
       } CATCH(err) {
         log_warnf(log, "RPC method error: %s", verr_current_str());
         ok = false;
@@ -372,13 +380,13 @@ void rpc_zmq_serve(void* socket, BinaryRPC* rpc) {
       zmq_msg_close(args);
 
       // Send status message
-      r = zmq_send(socket, &ok, 1, ZMQ_SNDMORE);
+      r = zmq_send(self->socket, &ok, 1, ZMQ_SNDMORE);
       if (r == -1) verr_raise_system();
 
       // Send result data
       size_t resp_size;
       const char* resp_data = string_output_data(buf, &resp_size);
-      r = zmq_send(socket, resp_data, resp_size, 0);
+      r = zmq_send(self->socket, resp_data, resp_size, 0);
       if (r == -1) verr_raise_system();
 
     }

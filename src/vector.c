@@ -1,5 +1,6 @@
 
 #include <stdlib.h>
+#include <string.h>
 #include <assert.h>
 
 #include <vlib/vector.h>
@@ -39,4 +40,40 @@ void* vector_push(Vector* v) {
 void vector_pop(Vector* v) {
   assert(v->size > 0);
   v->size--;
+}
+
+/* AutoVector */
+
+void  autovector_init(AutoVector* self, ResourceManager* manager) {
+  self->manager = manager;
+  vector_init(self->v, call(manager, data_size), 4);
+  memset(self->v->_data, 0, self->v->_cap * self->v->elemsz);
+  for (unsigned i = 0; i < self->v->_cap; i++) {
+    call(self->manager, reset_value, self->v->_data + i*self->v->elemsz);
+  }
+}
+void autovector_close(AutoVector* self) {
+  for (unsigned i = 0; i < self->v->_cap; i++) {
+    call(self->manager, close_value, self->v->_data + i*self->v->elemsz);
+  }
+  vector_close(self->v);
+  call(self->manager, close);
+}
+void autovector_reset(AutoVector* self) {
+  for (unsigned i = 0; i < self->v->size; i++) {
+    call(self->manager, reset_value, vector_get(self->v, i));
+  }
+  vector_clear(self->v);
+}
+
+void* autovector_push(AutoVector* self) {
+  size_t oldcap = self->v->_cap;
+  void* value = vector_push(self->v);
+  if (self->v->_cap > oldcap) {
+    memset(self->v->_data + oldcap*self->v->elemsz, 0, (self->v->_cap - oldcap) * self->v->elemsz);
+    for (unsigned i = oldcap; i < self->v->_cap; i++) {
+      call(self->manager, reset_value, self->v->_data + i*self->v->elemsz);
+    }
+  }
+  return value;
 }

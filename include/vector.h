@@ -5,6 +5,7 @@
 #include <stddef.h>
 
 #include <vlib/std.h>
+#include <vlib/resource.h>
 
 data(Vector) {
   size_t    size;   // number of elements
@@ -39,6 +40,17 @@ void* vector_push(Vector* v);
 
 /* Removes the last element from the vector and decrement's its size. */
 void vector_pop(Vector* v);
+
+data(AutoVector) {
+  ResourceManager*  manager;
+  Vector            v[1];
+};
+
+void    autovector_init(AutoVector* self, ResourceManager* manager);
+void    autovector_close(AutoVector* self);
+void    autovector_reset(AutoVector* self);
+
+void*   autovector_push(AutoVector* self);
 
 #endif /* VECTOR_H_B37F00869202FC */
 

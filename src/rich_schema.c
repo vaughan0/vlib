@@ -96,6 +96,44 @@ static co_State sink_root_state = {
   .run = root_state_run,
 };
 
+/* Resource manager */
+
+data(SchemaManager) {
+  ResourceManager base;
+  rich_Schema*    schema;
+};
+static ResourceManager_Impl schema_manager_impl;
+
+ResourceManager* rich_schema_manager(rich_Schema* schema) {
+  SchemaManager* self = malloc(sizeof(SchemaManager));
+  self->base._impl = &schema_manager_impl;
+  self->schema = schema;
+  return &self->base;
+}
+static size_t schema_data_size(void* _self) {
+  SchemaManager* self = _self;
+  return call(self->schema, data_size);
+}
+static void schema_reset_value(void* _self, void* value) {
+  SchemaManager* self = _self;
+  call(self->schema, reset_value, value);
+}
+static void schema_close_value(void* _self, void* value) {
+  SchemaManager* self = _self;
+  call(self->schema, close_value, value);
+}
+static void schema_manager_close(void* _self) {
+  SchemaManager* self = _self;
+  call(self->schema, close);
+  free(self);
+}
+static ResourceManager_Impl schema_manager_impl = {
+  .data_size = schema_data_size,
+  .reset_value = schema_reset_value,
+  .close_value = schema_close_value,
+  .close = schema_manager_close,
+};
+
 /* Unclosable schema */
 
 data(UnclosableSchema) {
@@ -548,33 +586,29 @@ static void vector_reset_value(void* _self, void* _value) {
   Vector* v = _value;
   if (v->_data) {
     for (unsigned i = 0; i < v->size; i++) {
-      call(self->of, reset_value, vector_get(v, i));
+      call(self->of, close_value, vector_get(v, i));
     }
     vector_clear(v);
   } else {
     vector_init(v, call(self->of, data_size), 4);
-    memset(v->_data, 0, v->_cap * v->elemsz);
-    for (unsigned i = 0; i < v->_cap; i++) {
-      call(self->of, reset_value, v->_data + i*v->elemsz);
-    }
   }
 }
 static void vector_close_value(void* _self, void* _value) {
   VectorSchema* self = _self;
   Vector* v = _value;
   if (v->_data) {
-    for (unsigned i = 0; i < v->_cap; i++) {
-      call(self->of, close_value, v->_data + i*v->elemsz);
+    for (unsigned i = 0; i < v->size; i++) {
+      call(self->of, close_value, vector_get(v, i));
     }
     vector_close(v);
   }
 }
 static void vector_push_state(void* _self, Coroutine* co, void* _value) {
   VectorSchema* self = _self;
-  VectorData* arg = coroutine_push(co, &vector_state, sizeof(VectorData));
-  arg->of = self->of;
-  arg->v = _value;
-  arg->first_atom = true;
+  VectorData* data = coroutine_push(co, &vector_state, sizeof(VectorData));
+  data->of = self->of;
+  data->v = _value;
+  data->first_atom = true;
 }
 static void vector_schema_close(void* _self) {
   VectorSchema* self = _self;
@@ -590,20 +624,6 @@ static rich_Schema_Impl vector_impl = {
   .close = vector_schema_close,
 };
 
-static void* pushval(VectorData* data) {
-  Vector* v = data->v;
-  size_t cap = v->_cap;
-  void* value = vector_push(v);
-  if (cap < v->_cap) {
-    // Initialize newly-allocated elements
-    memset(v->_data + cap*v->elemsz, 0, (v->_cap - cap) * v->elemsz);
-    for (unsigned i = cap; i < v->_cap; i++) {
-      void* newval = v->_data + i*v->elemsz;
-      call(data->of, reset_value, newval);
-    }
-  }
-  return value;
-}
 static void vector_state_run(void* udata, Coroutine* co, void* _arg) {
   VectorData* data = udata;
   rich_SchemaArg* arg = _arg;
@@ -616,13 +636,109 @@ static void vector_state_run(void* udata, Coroutine* co, void* _arg) {
     coroutine_pop(co);
   } else {
     // Delegate to sub schema
-    void* value = pushval(data);
+    void* value = vector_push(data->v);
+    memset(value, 0, call(data->of, data_size));
+    call(data->of, reset_value, value);
     call(data->of, push_state, co, value);
     coroutine_run(co, arg);
   }
 }
 static co_State vector_state = {
   .run = vector_state_run,
+};
+
+/* AutoVector */
+
+data(AutoVectorSchema) {
+  rich_Schema   base;
+  rich_Schema*  of;
+};
+static rich_Schema_Impl autovector_impl;
+
+data(AutoVectorData) {
+  rich_Schema*  of;
+  AutoVector*   v;
+  bool          first_atom;
+};
+static co_State autovector_state;
+
+rich_Schema* rich_schema_autovector(rich_Schema* of) {
+  AutoVectorSchema* self = malloc(sizeof(AutoVectorSchema));
+  self->base._impl = &autovector_impl;
+  self->of = rich_schema_unclosable(of);
+  return &self->base;
+}
+
+static size_t autovector_data_size(void* _self) {
+  return sizeof(AutoVector);
+}
+static void autovector_dump_value(void* _self, void* value, rich_Sink* to) {
+  AutoVectorSchema* self = _self;
+  AutoVector* v = value;
+  if (v->manager && v->v->_data) {
+    call(to, sink, RICH_ARRAY, NULL);
+    for (unsigned i = 0; i < v->v->size; i++) {
+      void* elem = vector_get(v->v, i);
+      call(self->of, dump_value, elem, to);
+    }
+    call(to, sink, RICH_ENDARRAY, NULL);
+  } else {
+    call(to, sink, RICH_NIL, NULL);
+  }
+}
+static void autovector_reset_value(void* _self, void* value) {
+  AutoVectorSchema* self = _self;
+  AutoVector* v = value;
+  if (v->manager) {
+    autovector_reset(v);
+  } else {
+    autovector_init(v, rich_schema_manager(self->of));
+  }
+}
+static void autovector_close_value(void* _self, void* value) {
+  AutoVector* v = value;
+  autovector_close(v);
+}
+static void autovector_push_state(void* _self, Coroutine* co, void* value) {
+  AutoVectorSchema* self = _self;
+  AutoVectorData* data = coroutine_push(co, &autovector_state, sizeof(AutoVectorData));
+  data->of = self->of;
+  data->v = value;
+  data->first_atom = true;
+}
+static void autovector_schema_close(void* _self) {
+  AutoVectorSchema* self = _self;
+  rich_schema_close(self->of);
+  free(self);
+}
+static rich_Schema_Impl autovector_impl = {
+  .data_size = autovector_data_size,
+  .dump_value = autovector_dump_value,
+  .reset_value = autovector_reset_value,
+  .close_value = autovector_close_value,
+  .push_state = autovector_push_state,
+  .close = autovector_schema_close,
+};
+
+static void autovector_state_run(void* udata, Coroutine* co, void* _arg) {
+  AutoVectorData* data = udata;
+  rich_SchemaArg* arg = _arg;
+
+  if (data->first_atom) {
+    data->first_atom = false;
+    if (arg->atom != RICH_ARRAY) RAISE(MALFORMED);
+    return;
+  } else if (arg->atom == RICH_ENDARRAY) {
+    coroutine_pop(co);
+    return;
+  }
+
+  void* elem = autovector_push(data->v);
+  call(data->of, push_state, co, elem);
+  coroutine_run(co, arg);
+}
+static co_State autovector_state = {
+  .run = autovector_state_run,
 };
 
 /* Hashtable */

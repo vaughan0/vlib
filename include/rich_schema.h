@@ -3,6 +3,7 @@
 
 #include <vlib/rich.h>
 #include <vlib/coroutine.h>
+#include <vlib/resource.h>
 
 interface(rich_Schema) {
   size_t  (*data_size)(void* self);
@@ -12,6 +13,8 @@ interface(rich_Schema) {
   void    (*push_state)(void* self, Coroutine* co, void* value);
   void    (*close)(void* self);
 };
+
+ResourceManager*    rich_schema_manager(rich_Schema* schema);
 
 rich_Schema*        rich_schema_unclosable(rich_Schema* wrap);
 void                rich_schema_close(rich_Schema* unclosable);

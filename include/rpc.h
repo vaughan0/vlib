@@ -41,8 +41,7 @@ void    rpc_call(RPC_Client* self, int method, void* arg, void* result);
 
 typedef void (*RPCMethod)(void* udata, void* args, void* result);
 
-RPC*    rpc_service_new(void* udata);
-void    rpc_service_cleanup(RPC* self, void (*cleanup_handler)(void* udata));
+RPC*    rpc_service_new(void* udata, void (*cleanup_handler)(void* udata));
 void    rpc_add(RPC* self, const char* method, RPCMethod handler, rich_Schema* arg_schema, rich_Schema* result_schema);
 
 /* RPC over ZeroMQ support */
@@ -53,8 +52,15 @@ void    rpc_add(RPC* self, const char* method, RPCMethod handler, rich_Schema* a
 
 BinaryRPC*  rpc_zmq_new(void* req_socket);
 
-// TODO: do this properly, ie. make it stoppable.
-void        rpc_zmq_serve(void* rep_socket, BinaryRPC* rpc);
+data(RPC_ZMQServer) {
+  void*       socket;
+  BinaryRPC*  rpc;
+  bool        running;
+};
+
+void        rpc_zmq_init(RPC_ZMQServer* self, void* rep_socket, BinaryRPC* backend);
+void        rpc_zmq_stop(RPC_ZMQServer* self);
+void        rpc_zmq_serve(RPC_ZMQServer* self);
 
 #endif
 
